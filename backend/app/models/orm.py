@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, Boolean, ForeignKey, CheckConstraint, JSON
+from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, Boolean, ForeignKey, CheckConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.database import Base
@@ -45,7 +46,7 @@ class TelemetrySummary(Base):
     ir_growth_pct = Column(Numeric(6, 2), nullable=True)
     voltage_stability = Column(Numeric(4, 3), nullable=True)
     coulombic_efficiency = Column(Numeric(5, 4), nullable=True)
-    features_json = Column(JSON, nullable=True)
+    features_json = Column(JSONB, nullable=True)
 
     # Relationships
     battery = relationship("Battery", back_populates="telemetry")
@@ -63,7 +64,7 @@ class Assessment(Base):
     grade = Column(String(1), CheckConstraint("grade IN ('S','A','B','C','D')"), nullable=False)
     confidence = Column(String(6), nullable=False)  # high | medium | low
     model_version = Column(String(20), nullable=False)
-    explanation_json = Column(JSON, nullable=False)
+    explanation_json = Column(JSONB, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -96,7 +97,7 @@ class Deployment(Base):
     battery_id = Column(Integer, ForeignKey("batteries.id", ondelete="CASCADE"), nullable=False, index=True)
     site_id = Column(Integer, ForeignKey("sites.id"), nullable=False)
     score = Column(Numeric(6, 3), nullable=False)
-    reasoning_json = Column(JSON, nullable=False)
+    reasoning_json = Column(JSONB, nullable=False)
     distance_km = Column(Numeric(8, 1), nullable=True)
     energy_unlocked_mwh = Column(Numeric(10, 3), nullable=False)
     carbon_saved_kg = Column(Numeric(12, 1), nullable=False)
@@ -114,9 +115,8 @@ class LifecycleEvent(Base):
     id = Column(Integer, primary_key=True, index=True)
     battery_id = Column(Integer, ForeignKey("batteries.id", ondelete="CASCADE"), nullable=False, index=True)
     event_type = Column(String(40), nullable=False)
-    payload_json = Column(JSON, nullable=True)
+    payload_json = Column(JSONB, nullable=True)
     event_hash = Column(String(64), nullable=True)  # Sha256 hash for ledger verification
     occurred_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Relationships
     battery = relationship("Battery", back_populates="lifecycle_events")
