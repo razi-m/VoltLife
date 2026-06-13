@@ -4,18 +4,50 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 from app.core.logging import logger
 
+from sqlalchemy.pool import NullPool
+
+import json
+import math
+
+def custom_serializer(obj):
+    """
+    Traverses the object and replaces float('nan') values with None
+    to prevent invalid JSON token exceptions (e.g. unquoted NaN) in PostgreSQL.
+    """
+    def clean_nan(o):
+        if isinstance(o, dict):
+            return {k: clean_nan(v) for k, v in o.items()}
+        elif isinstance(o, list):
+            return [clean_nan(v) for v in o]
+        elif isinstance(o, float) and math.isnan(o):
+            return None
+        return o
+    return json.dumps(clean_nan(obj))
+
 DATABASE_URL = settings.DATABASE_URL
 is_sqlite = DATABASE_URL.startswith("sqlite")
 
-# SQLite connection options
-connect_args = {}
-if is_sqlite:
+# Database connection options and engine setup
+if not is_sqlite:
+    connect_args = {
+        "sslmode": "require",
+        "connect_timeout": 10
+    }
+    engine = create_engine(
+        DATABASE_URL,
+        poolclass=NullPool,
+        connect_args=connect_args,
+        pool_pre_ping=True,
+        json_serializer=custom_serializer
+    )
+else:
     connect_args = {"check_same_thread": False}
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args=connect_args,
+        json_serializer=custom_serializer
+    )
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args=connect_args
-)
 
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -43,7 +75,7 @@ def init_db():
         logger.info("SQLite database detected. Running metadata.create_all().")
     else:
         logger.info("PostgreSQL database detected. Running idempotent metadata.create_all() (checkfirst).")
-        # Schema is frozen (docs/03); generic JSON/DateTime types render as JSONB/TIMESTAMPTZ on PG.
-        # create_all(checkfirst=True) is the formal init path for both engines - no migration tooling
-        # required at the hackathon. If incremental migrations are ever needed, add an Alembic baseline.
+        # Schema is frozen (docs/03); models use postgresql.JSONB and DateTime(timezone=True) -> TIMESTAMPTZ.
+        # create_all(checkfirst=True) creates missing tables only. For column changes see
+        # database_evolution_strategy.md (no migration tooling at the hackathon).
     OrmBase.metadata.create_all(bind=engine)
