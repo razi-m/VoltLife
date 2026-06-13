@@ -24,3 +24,7 @@ Thumbs.db
 
 # Local environment variables
 .env
+
+# FUSE hidden files
+.fuse_hidden*
+

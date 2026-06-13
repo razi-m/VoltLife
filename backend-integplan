@@ -1,0 +1,151 @@
+# VoltLife Backend Foundation Implementation Plan
+
+This plan details the implementation of the backend foundation for the VoltLife platform. It includes database models, Pydantic schemas, WebSocket management, background task pipelines, ML stubs, and API routes that strictly adhere to the VoltLife architecture.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Must-Fix #1 Applied:** The CSV parser, telemetry schema, and ML features wrapper are designed to accept 6 optional columns: `fade_rate`, `fade_acceleration`, `cv_phase_fraction`, `voltage_slope`, `voltage_variance`, and `discharge_efficiency`. When missing, they default to `NaN`, preventing errors while supporting full feature input.
+>
+> **Must-Fix #2 Applied:** In the predictor post-processing wrapper, `rul_cycles` will be clamped at `2400` (which is equivalent to 8.0 years × 300 cycles per year), ensuring consistency between energy unlocked calculations and the displayed RUL years.
+>
+> **Should-Fix #1 Applied (SQLite Fallback):** The database connection is built using generic SQLAlchemy types (`JSON` and `DateTime(timezone=True)`) to support both PostgreSQL and SQLite. In `sqlite://` databases, the tables will be created via `metadata.create_all()` at startup, skipping Alembic migrations automatically.
+>
+> **Autonomous Mode Flag (`AUTONOMY_MODE`):** The engine deployment approvals auto-advance to `approved` state when the autonomy mode is active (default for demo), and use a standard `recommended -> approved -> dispatched` workflow otherwise.
+
+## Proposed Changes
+
+We will generate the complete backend subsystem under the `backend/` directory.
+
+---
+
+### [NEW] Configuration & Core Files
+
+#### [NEW] [config.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/core/config.py)
+* Environments, database URI (with SQLite fallback detection), `DEMO_KEY` (guarding `/demo/reset` and `/demo/replay` routes via `X-DEMO-KEY` header), `PUBLIC_BASE_URL` (for QR passport resolutions), `PACE_S` (for telemetry processing sleep time, default 0.15s), `AUTONOMY_MODE` (boolean, default True).
+
+#### [NEW] [logging.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/core/logging.py)
+* Structured logging setup for incoming requests and API/service processes.
+
+#### [NEW] [database.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/db/database.py)
+* SQLAlchemy base, engine, and session makers. Handles database initialization, including automatic schema creation if using SQLite.
+
+---
+
+### [NEW] Shared Constants
+
+#### [NEW] [constants.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/shared/constants.py)
+* Stores physical rules and grading parameters (300 cycles/yr, 60 kg CO₂e/kWh carbon savings factor, 0.8 DoD, 0.9 round-trip efficiency, grade thresholds, and safety ceilings).
+
+---
+
+### [NEW] Models and Schemas
+
+#### [NEW] [orm.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/models/orm.py)
+* SQLAlchemy models for `batteries`, `telemetry_summaries`, `assessments`, `sites`, `deployments`, and `lifecycle_events`. Incorporates an optional `event_hash` column for tamper-evident ledger logging.
+
+#### [NEW] [api.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/schemas/api.py)
+* Pydantic schemas mirroring `docs/04-api-contracts.md` exactly, with validation for ingestion (including the 6 optional columns), paging, and public Aadhaar payloads.
+
+#### [NEW] [ml.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/schemas/ml.py)
+* Pydantic validation schemas to assert types at the ML predictor and recommender boundaries.
+
+---
+
+### [NEW] ML Stubs
+
+#### [NEW] [features.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/ml/features.py)
+* BMS telemetry parser converting raw signals into the canonical 14 feature dictionary.
+
+#### [NEW] [stub_predictor.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/ml/stub_predictor.py)
+* Fast, schema-valid inference stub simulating assessments (SoH, RUL, grade, confidence, and reasons) without loading weights, implementing the cycles clamp.
+
+#### [NEW] [predictor.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/ml/predictor.py)
+* Wrapper exposing `assess()` and calling `stub_predictor.py` (ready for swapping in the ML model in Phase 2).
+
+#### [NEW] [recommend.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/ml/recommend.py)
+* Scoring logic ranking sites based on proximity, capacity fit, priority weight, and grade gates.
+
+---
+
+### [NEW] Services & Pipeline
+
+#### [NEW] [ingestion.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/services/ingestion.py)
+* Validates and normalizes uploads (supporting both CSV files and JSON arrays), generating reject reports.
+
+#### [NEW] [pipeline.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/services/pipeline.py)
+* BackgroundTask orchestrator pacing processing loop, executing `asyncio.to_thread` for sync ML steps, committing database transactions per battery, and pushing to the WebSocket broadcaster.
+
+#### [NEW] [deployment.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/services/deployment.py)
+* Decides site routing, decrements capacity atomically, and updates battery statuses.
+
+#### [NEW] [aadhaar.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/services/aadhaar.py)
+* Encodes and decodes BPAN IDs, logs events, generates the 3-sentence life story template, and returns composite passports.
+
+#### [NEW] [impact.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/services/impact.py)
+* Computes carbon avoided and energy unlocked per battery. Provides fleet-wide impact aggregates.
+
+---
+
+### [NEW] WebSockets & Mocks
+
+#### [NEW] [manager.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/websockets/manager.py)
+* WebSocket connection manager supporting broadcating with safe disconnect routines, alongside an in-memory job registry and a 20-entry event ring buffer.
+
+#### [NEW] [mock_server.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/mocks/mock_server.py)
+* Serves mock JSON payloads for all 12 routes to allow frontend sandbox runs.
+
+---
+
+### [NEW] Routers & App Initialization
+
+#### [NEW] [main.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/main.py)
+* FastAPI app configuration, CORS middleware, global error handling mapping to `{"error": {"code", "message"}}`, and route registration.
+
+#### [NEW] [routers/](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/routers)
+* Routers containing thin wrappers delegating API endpoints to services:
+  * `batteries.py` (List, Detail, Ingest, Aadhaar, Public Aadhaar)
+  * `jobs.py` (Job status & recent events polling)
+  * `sites.py` (Site list)
+  * `impact.py` (Live impact summaries)
+  * `demo.py` (Reset and Replay)
+  * `healthz.py` (Preflight health check)
+
+---
+
+### [NEW] Seed Data & Replays
+
+#### [NEW] [sites.json](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/seed/sites.json)
+* Mandated list of 25 sites including rural microgrids, solar storage, schools, primary health centers, and recyclers.
+
+#### [NEW] [sample_fleet.csv](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/seed/sample_fleet.csv)
+* Small sample fleet to test the ingestion pipeline.
+
+#### [NEW] [seed.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/app/seed/seed.py)
+* Wipes and seeds sites data. Runs automatically on startup if the database is blank.
+
+---
+
+### [NEW] Tests, Tooling, and Deployment
+
+#### [NEW] [test_smoke.py](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/tests/test_smoke.py)
+* Integration test covering ingestion, background pipeline runs, database persistence, and WebSocket emissions.
+
+#### [NEW] [requirements.txt](file:///c:/Users/Razi/Claude/Projects/VoltLife/backend/requirements.txt)
+* Pinned backend dependencies (`fastapi`, `uvicorn`, `sqlalchemy`, `pydantic`, `python-multipart`, `psycopg2-binary`).
+
+---
+
+## Verification Plan
+
+### Automated Tests
+* Run `pytest backend/tests/test_smoke.py` in a temporary SQLite DB to verify:
+  1. Valid CSV ingestion accepts the optional columns.
+  2. The background task pipeline paces processing with `to_thread`.
+  3. Aadhaar generation decodes and templates narrative summaries correctly.
+  4. SQL models compile and save relationships without validation errors.
+
+### Manual Verification
+* Boot the app locally: `uvicorn backend.app.main:app --reload`
+* Visit `http://localhost:8000/docs` to verify Swagger / OpenAPI documentation is complete and routing structures match `docs/04-api-contracts.md` exactly.
+* Run `/demo/reset` and upload `sample_fleet.csv` to check that the background cascade proceeds correctly.
