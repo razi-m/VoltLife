@@ -1,0 +1,8 @@
+# Regenerable ML artifacts (produced by parse/train/generate_fleet)
+data/raw/
+data/parsed/*.json
+data/fleet.json
+models/*.pkl
+__pycache__/
+*.pyc
+.pytest_cache/

@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.0",
+  "trained_on": "2026-06-13",
+  "dataset": "NASA-PCoE-discharge.csv+synthetic(30)",
+  "hackathon_mode": true,
+  "n_rows": 680,
+  "n_cells": 34,
+  "validation": "LeaveOneCellOut",
+  "soh": {
+    "mae": 0.1272,
+    "rmse": 0.3416,
+    "r2": 0.9993
+  },
+  "rul": {
+    "mae": 218.2481,
+    "coverage": 0.85,
+    "coverage_raw": 0.7412,
+    "conformal_margin_cycles": 44.91
+  },
+  "thresholds_passed": {
+    "soh_mae<5.0": true,
+    "soh_r2>0.85": true,
+    "rul_coverage>0.80": true
+  }
+}
