@@ -1,0 +1,364 @@
+.marketplace {
+  padding-bottom: var(--space-8);
+}
+
+.marketplace__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+}
+
+.marketplace__live-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: rgba(78, 222, 163, 0.05);
+  border: 1px solid rgba(78, 222, 163, 0.15);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.marketplace__status-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--secondary);
+  border-radius: var(--radius-full);
+}
+
+.marketplace__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+}
+
+@media (min-width: 1024px) {
+  .marketplace__grid {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.marketplace__panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.marketplace__filter-group {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.marketplace__filter-btn {
+  background: var(--surface-container-high);
+  border: 1px solid var(--outline-variant);
+  color: var(--on-surface-variant);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.marketplace__filter-btn:hover {
+  background: var(--surface-container-highest);
+  color: var(--on-surface);
+}
+
+.marketplace__filter-btn--active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+
+.marketplace__filter-btn--active:hover {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.marketplace__table-container {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.marketplace__table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.marketplace__table th {
+  background: var(--surface-container-low);
+  padding: var(--space-3) var(--space-5);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--on-surface-variant);
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.marketplace__table td {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid rgba(66, 71, 84, 0.3);
+  vertical-align: middle;
+}
+
+.marketplace__row {
+  transition: background var(--transition-fast);
+}
+
+.marketplace__row:hover {
+  background: rgba(42, 42, 44, 0.5);
+}
+
+.marketplace__grade-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+}
+
+.marketplace__grade-tag--s {
+  background: rgba(78, 222, 163, 0.08);
+  color: var(--grade-s);
+  border-color: rgba(78, 222, 163, 0.2);
+}
+
+.marketplace__grade-tag--a {
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--grade-a);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.marketplace__grade-tag--b {
+  background: rgba(167, 139, 250, 0.08);
+  color: var(--grade-b);
+  border-color: rgba(167, 139, 250, 0.2);
+}
+
+.marketplace__grade-tag--c {
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--grade-c);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.marketplace__clock-icon {
+  color: var(--tertiary);
+  margin-right: var(--space-1);
+}
+
+.marketplace__bid-btn {
+  background: var(--primary);
+  color: var(--on-primary);
+  border: none;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: transform var(--transition-fast), filter var(--transition-fast);
+}
+
+.marketplace__bid-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.marketplace__bid-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.marketplace__bid-btn:disabled {
+  background: var(--surface-container-highest);
+  color: var(--on-surface-variant);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Chart Styles */
+.marketplace__chart-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 240px;
+  padding: var(--space-4);
+  flex-grow: 1;
+}
+
+.marketplace__chart-svg-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.marketplace__chart-svg {
+  width: 100%;
+  height: 200px;
+  border-left: 1px solid var(--outline-variant);
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.marketplace__chart-stat {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  gap: var(--space-1);
+}
+
+.marketplace__recommendation {
+  background: rgba(173, 198, 255, 0.03);
+  border-top: 1px solid var(--outline-variant);
+  padding: var(--space-4);
+}
+
+.marketplace__recommendation-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+/* Bulk Lots Card Grid */
+.marketplace__lot-card {
+  padding: 0 !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.marketplace__lot-image-container {
+  position: relative;
+  height: 128px;
+  background: var(--surface-container);
+}
+
+.marketplace__lot-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.45;
+  transition: transform 500ms ease;
+}
+
+.marketplace__lot-card:hover .marketplace__lot-image {
+  transform: scale(1.04);
+}
+
+.marketplace__lot-badge {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  background: rgba(14, 14, 16, 0.85);
+  border: 1px solid var(--outline-variant);
+  color: var(--primary);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.marketplace__lot-content {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.marketplace__lot-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+  margin-top: var(--space-3);
+}
+
+.marketplace__lot-detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.marketplace__inspect-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  padding: var(--space-2) 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  margin-top: auto;
+  transition: all var(--transition-fast);
+}
+
+.marketplace__lot-card:hover .marketplace__inspect-btn {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+/* Footer layout */
+.marketplace__footer {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--outline-variant);
+  padding-top: var(--space-4);
+  font-size: 9px;
+  font-family: var(--font-data);
+}
+
+/* Toast System */
+.marketplace-toast {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--surface-container-high);
+  border-left: 3px solid var(--secondary);
+  border-top: 1px solid var(--outline-variant);
+  border-bottom: 1px solid var(--outline-variant);
+  border-right: 1px solid var(--outline-variant);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius);
+  animation: slideIn 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+.marketplace-toast--info {
+  border-left-color: var(--primary);
+}
+
+.marketplace-toast__icon {
+  color: var(--secondary);
+}
+
+.marketplace-toast--info .marketplace-toast__icon {
+  color: var(--primary);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

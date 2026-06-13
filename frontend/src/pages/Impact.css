@@ -1,0 +1,6 @@
+.impact__legend { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); }
+.impact__vision-stat {
+  text-align: center; padding: var(--space-4);
+  border: var(--border-default); border-radius: var(--radius);
+  background: var(--surface-container-low);
+}

@@ -1,0 +1,191 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import './tokens.css';
+
+/* ═══════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--on-surface);
+  background-color: var(--background);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+a:hover {
+  color: var(--primary-fixed);
+}
+
+img, svg {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-container-lowest);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--outline-variant);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--outline);
+}
+
+/* ═══════════════════════════════════════════
+   TYPOGRAPHY UTILITIES
+   ═══════════════════════════════════════════ */
+.text-display-lg {
+  font: var(--text-display-lg);
+  letter-spacing: var(--text-display-lg-spacing);
+}
+.text-headline-md {
+  font: var(--text-headline-md);
+  letter-spacing: var(--text-headline-md-spacing);
+}
+.text-headline-sm {
+  font: var(--text-headline-sm);
+}
+.text-body-lg {
+  font: var(--text-body-lg);
+}
+.text-body-sm {
+  font: var(--text-body-sm);
+}
+.text-data-lg {
+  font: var(--text-data-lg);
+}
+.text-data-md {
+  font: var(--text-data-md);
+}
+.text-label-caps {
+  font: var(--text-label-caps);
+  letter-spacing: var(--text-label-caps-spacing);
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+}
+
+/* ═══════════════════════════════════════════
+   APP LAYOUT
+   ═══════════════════════════════════════════ */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: margin-left var(--transition-normal);
+}
+
+.page-content {
+  flex: 1;
+  padding: var(--space-6);
+  max-width: 1440px;
+  width: 100%;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+  gap: var(--space-4);
+}
+
+.page-title {
+  font: var(--text-headline-md);
+  letter-spacing: var(--text-headline-md-spacing);
+  color: var(--on-surface);
+}
+
+/* ═══════════════════════════════════════════
+   GRID SYSTEM
+   ═══════════════════════════════════════════ */
+.grid {
+  display: grid;
+  gap: var(--gutter);
+}
+.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* ═══════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-container) 25%, var(--surface-container-high) 50%, var(--surface-container) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius);
+}

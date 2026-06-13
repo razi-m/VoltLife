@@ -35,7 +35,7 @@ if _PROD_URL and _EXPLICIT_TEST_URL == _PROD_URL:
     )
 
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
-os.environ.setdefault("PACE_S", "0")
+os.environ["PACE_S"] = "0"
 
 import json
 import math

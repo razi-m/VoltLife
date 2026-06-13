@@ -114,12 +114,16 @@ async def ingest_batteries(
 def list_batteries(
     grade: Optional[str] = None,
     status: Optional[str] = None,
+    search: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_order: Optional[str] = "desc",
     page: int = 1,
     page_size: int = 50,
     db: Session = Depends(get_db)
 ):
     """
     Returns a paginated list of batteries with their latest grade and deployment destination.
+    Supports text search on aadhaar_id, external_ref, oem and sorting.
     """
     page_size = min(200, max(1, page_size))
     page = max(1, page)
@@ -129,6 +133,16 @@ def list_batteries(
 
     if status:
         query = query.filter(Battery.status == status)
+
+    # Text search across key fields
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (Battery.aadhaar_id.ilike(search_term)) |
+            (Battery.external_ref.ilike(search_term)) |
+            (Battery.oem.ilike(search_term)) |
+            (Battery.chemistry.ilike(search_term))
+        )
 
     # Filter by grade requires joining assessment
     if grade:
@@ -145,6 +159,22 @@ def list_batteries(
             subq.c.rn == 1,
             subq.c.grade == grade
         )
+
+    # Sorting
+    sort_columns = {
+        "id": Battery.id,
+        "external_ref": Battery.external_ref,
+        "oem": Battery.oem,
+        "chemistry": Battery.chemistry,
+        "rated_capacity_kwh": Battery.rated_capacity_kwh,
+        "status": Battery.status,
+        "created_at": Battery.created_at,
+    }
+    sort_col = sort_columns.get(sort_by, Battery.created_at)
+    if sort_order == "asc":
+        query = query.order_by(sort_col.asc())
+    else:
+        query = query.order_by(sort_col.desc())
 
     total = query.count()
     batteries = query.offset(offset).limit(page_size).all()

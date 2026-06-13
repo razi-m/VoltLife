@@ -1,0 +1,71 @@
+.registry__layout { display: flex; gap: var(--gutter); }
+.registry__table-section { flex: 1; min-width: 0; }
+.registry__passport-panel { width: 380px; flex-shrink: 0; animation: fadeIn 0.3s ease; }
+
+.registry__filters {
+  display: flex; gap: var(--space-3); margin-bottom: var(--space-4);
+}
+.registry__filter-select {
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-container);
+  border: var(--border-default);
+  border-radius: var(--radius);
+  color: var(--on-surface);
+  font: var(--text-body-sm);
+  cursor: pointer;
+}
+.registry__filter-select:focus { border-color: var(--primary); outline: none; }
+
+.registry__passport-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: var(--space-4);
+}
+.registry__close-btn {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius);
+  color: var(--on-surface-variant);
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.registry__close-btn:hover { background: var(--surface-container-high); color: var(--on-surface); }
+
+.registry__aadhaar-id {
+  padding: var(--space-3);
+  background: var(--surface-container-low);
+  border: var(--border-default);
+  border-radius: var(--radius);
+  text-align: center;
+  color: var(--primary);
+  font-size: 14px;
+  margin-bottom: var(--space-4);
+  word-break: break-all;
+}
+
+.registry__passport-section {
+  padding-top: var(--space-4);
+  border-top: var(--border-default);
+  margin-top: var(--space-4);
+}
+.registry__passport-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: var(--space-3); margin-top: var(--space-3);
+}
+.registry__passport-field {
+  display: flex; flex-direction: column; gap: 2px;
+}
+
+.registry__timeline {
+  display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-3);
+}
+.registry__timeline-event {
+  display: flex; gap: var(--space-3); align-items: flex-start;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--outline-variant);
+}
+.registry__timeline-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--primary-container);
+  margin-top: 4px; flex-shrink: 0;
+}
+
+.registry__passport-body { animation: fadeIn 0.2s ease; }
