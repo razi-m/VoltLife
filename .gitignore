@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+ENV/
+
+# Databases
+*.db
+*.db-journal
+
+# OS / IDEs
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Backups
+*.zip
+*.tar.gz
+*.tgz
+
+# Local environment variables
+.env
