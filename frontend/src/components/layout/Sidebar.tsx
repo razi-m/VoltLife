@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import './Sidebar.css';
 
 /** Shared nav items visible to all authenticated roles */
@@ -28,8 +28,9 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ wsConnected }) => {
-  const isSupplier = useMemo(() => !!localStorage.getItem('supplier_token'), []);
-  const isBuyer = useMemo(() => !!localStorage.getItem('buyer_token'), []);
+  const location = useLocation(); // subscribing to location changes forces re-render
+  const isSupplier = !!localStorage.getItem('supplier_token');
+  const isBuyer = !!localStorage.getItem('buyer_token');
 
   const roleItems = isSupplier ? sellerNavItems : buyerNavItems;
   const roleLabel = isSupplier ? 'Seller Mode' : isBuyer ? 'Buyer Mode' : null;
