@@ -237,7 +237,7 @@ export const api = {
         body: { plan_name: planName },
         headers: { 'Authorization': `Bearer ${token}` }
       }),
-    verify: (payload: { plan_name: string; session_id: string; razorpay_order_id?: string; razorpay_payment_id?: string; razorpay_signature?: string }, token: string) =>
+    verify: (payload: { plan_name: string; session_id: string }, token: string) =>
       request<{ status: string; subscription: any }>('/api/v1/subscriptions/verify', {
         method: 'POST',
         body: payload,

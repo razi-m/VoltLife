@@ -151,77 +151,7 @@ const SellerDashboard: React.FC = () => {
     fetchData();
   }, [token]);
 
-  // Razorpay Dynamic SDK Trigger
-  const triggerRealRazorpay = (planName: string, session: { session_id: string; amount_paise: number; key_id: string }) => {
-    return new Promise<void>((resolve, reject) => {
-      const scriptId = 'razorpay-checkout-script';
-      let script = document.getElementById(scriptId) as HTMLScriptElement;
-      
-      const openCheckout = () => {
-        const options = {
-          key: session.key_id,
-          amount: session.amount_paise,
-          currency: 'INR',
-          name: 'VoltLife Battery SaaS',
-          description: `${planName} Subscription Plan`,
-          order_id: session.session_id,
-          handler: async (response: any) => {
-            try {
-              setLoading(true);
-              await api.subscriptions.verify({
-                plan_name: planName,
-                session_id: session.session_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature
-              }, token!);
-              setPaymentSession(null);
-              setActiveSubscribingPlan(null);
-              fetchData();
-              resolve();
-            } catch (verifyErr: any) {
-              setPaymentError(verifyErr.message || 'Signature verification failed.');
-              reject(verifyErr);
-            } finally {
-              setLoading(false);
-            }
-          },
-          prefill: {
-            name: companyName || 'VoltLife Seller',
-            email: 'supplier@demovolt.com'
-          },
-          theme: {
-            color: '#2563eb'
-          },
-          modal: {
-            ondismiss: () => {
-              setPaymentSession(null);
-              setActiveSubscribingPlan(null);
-              reject(new Error('Checkout cancelled by user.'));
-            }
-          }
-        };
-        const rzp = new (window as any).Razorpay(options);
-        rzp.open();
-      };
-
-      if (!script) {
-        script = document.createElement('script');
-        script.id = scriptId;
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.onload = () => {
-          openCheckout();
-        };
-        script.onerror = () => {
-          reject(new Error('Failed to load Razorpay SDK.'));
-        };
-        document.body.appendChild(script);
-      } else {
-        openCheckout();
-      }
-    });
-  };
-
+  // Stripe Subscription Checkout Handler
   const handleSubscribeInit = async (planName: string) => {
     if (!token) return;
     setActiveSubscribingPlan(planName);
@@ -231,9 +161,10 @@ const SellerDashboard: React.FC = () => {
       const session = await api.subscriptions.createSession(planName, token);
       setPaymentSession(session);
       
-      // If it's a real Razorpay session, trigger it (already starts in background)
-      if (!session.is_mock) {
-        await triggerRealRazorpay(planName, session);
+      // If it's a real Stripe session, redirect to checkout
+      if (!session.is_mock && session.checkout_url) {
+        window.location.href = session.checkout_url;
+        return;
       }
     } catch (err: any) {
       console.error('Failed to initiate subscription:', err);

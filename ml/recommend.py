@@ -6,10 +6,26 @@ NOT an ML model — a transparent, deterministic scoring engine.
 Output (frozen contract):
   {"top_3": [names], "selected": name, "score": float, "reasoning": str}
 
-Scoring is TIER-MATCH (fixed per validation FIX 1): premium destinations
-(higher min_grade / min_soh) score HIGHER for capable batteries, so a Grade S
-/ high-SoH pack surfaces premium sites (EV Charging Buffer, Solar Storage) in
-the top 3. Headroom-over-minimum scoring is intentionally NOT used.
+Scoring is TIER-ALIGNMENT (validation 2.0, ISSUE #1). The score rewards:
+  1. Tier alignment      — destination requirement matched to battery grade
+                           (peaks when the destination's min_grade == battery grade,
+                            then decays as the gap widens). A premium battery is NOT
+                            steered to a low-tier site.
+  2. Use-case suitability — higher-demand destinations are the premium use cases;
+                            a capable battery is matched to substantial workloads.
+  3. Battery quality      — SoH + remaining-life headroom.
+
+The OLD headroom-over-minimum / capacity-over-demand term is REMOVED: it rewarded
+"excess headroom", so a 95% pack scored a low-tier Street Lighting site (min_soh 60)
+higher than the premium EV Charging Buffer (min_soh 90). Ranking is now capacity-
+independent (capacity is reported in the reasoning, not used to invert the ranking).
+
+Resulting premium ladders (capability descending):
+  S -> EV Charging Buffer, Industrial Backup, Solar Storage
+  A -> Industrial Backup, Solar Storage, Telecom Tower
+  B -> Solar Storage, Rural Microgrid, Street Lighting
+  C -> Street Lighting (+ aspirational next-step sites)
+  D -> Certified Recycler (deployment blocked)
 
 Hard rules:
   - grade "D"        -> Certified Recycler (deployment blocked); top_3 padded to 3
@@ -22,10 +38,26 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import shared_constants as C
 
+# Largest destination demand in the catalog — normaliser for use-case suitability.
+_MAX_DEMAND_KWH = max((d["demand_kwh"] for d in C.DESTINATIONS), default=1.0) or 1.0
+
+# Scoring weights (sum 1.0). Tier alignment dominates so premium destinations
+# surface for premium batteries; demand breaks within-tier ties (higher demand
+# first); quality is a mild healthy-pack reward.
+_W_TIER, _W_DEMAND, _W_QUALITY = 0.62, 0.26, 0.12
+
 
 def _dest_tier(dest):
-    """Premium-ness of a destination in [0,1]: higher min_grade/min_soh -> higher."""
+    """Premium-ness of a destination in [0,1]: higher min_grade/min_soh -> higher.
+    Used only for aspirational padding ordering, not for primary scoring."""
     return 0.6 * (C.GRADE_RANK[dest["min_grade"]] / 5.0) + 0.4 * (dest["min_soh"] / 100.0)
+
+
+def _tier_alignment(grade, dest):
+    """1.0 when the destination's required grade == battery grade; decays linearly
+    with the grade gap (range of GRADE_RANK is 4, so divide by 4)."""
+    gap = abs(C.GRADE_RANK[grade] - C.GRADE_RANK[dest["min_grade"]])
+    return max(0.0, 1.0 - gap / 4.0)
 
 
 def _eligible(dest, grade, soh_pct):
@@ -34,15 +66,14 @@ def _eligible(dest, grade, soh_pct):
     return C.GRADE_RANK[grade] >= C.GRADE_RANK[dest["min_grade"]] and soh_pct >= dest["min_soh"]
 
 
-def _score(dest, soh_pct, rul_years, grade, capacity_kwh):
-    """Tier-match score in [0,1]: reward premium destinations + healthy/long-life packs."""
-    tier = _dest_tier(dest)                                   # premium destination -> higher
-    soh_fit = min(1.0, max(0.0, soh_pct) / 100.0)
-    rul_fit = min(1.0, max(0.0, rul_years) / C.RUL_YEARS_MAX)
-    cap_fit = 1.0
-    if dest["demand_kwh"] > 0 and capacity_kwh:
-        cap_fit = min(1.0, float(capacity_kwh) / dest["demand_kwh"])
-    return 0.45 * tier + 0.30 * soh_fit + 0.15 * rul_fit + 0.10 * cap_fit
+def _score(dest, soh_pct, rul_years, grade, capacity_kwh=None):
+    """Tier-alignment score in [0,1]. capacity_kwh is accepted but intentionally
+    NOT used in ranking (it previously inverted the intent)."""
+    tier_align = _tier_alignment(grade, dest)
+    demand_fit = min(1.0, dest["demand_kwh"] / _MAX_DEMAND_KWH)
+    quality = 0.5 * min(1.0, max(0.0, soh_pct) / 100.0) + \
+              0.5 * min(1.0, max(0.0, rul_years) / C.RUL_YEARS_MAX)
+    return _W_TIER * tier_align + _W_DEMAND * demand_fit + _W_QUALITY * quality
 
 
 def _rank(grade, soh_pct, rul_years, capacity_kwh):

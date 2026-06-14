@@ -13,12 +13,28 @@ Produces, for a single prediction:
 Background dataset is stored in model_v1.pkl (small, 50-100 rows per risk register).
 """
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
 import shap
 import shared_constants as C
+
+# ISSUE #2 (validation 2.0): reason/label strings must contain ZERO numeric values.
+# Templates below are authored number-free; this regex is a deterministic safety net
+# that strips any stray digit-bearing token (e.g. a parenthetical "(15.5%)") should a
+# template ever be edited. No LLM, no narrative — pure string hygiene.
+_NUMERIC_TOKEN_RE = re.compile(r"\s*\(?[-+]?\d[\d.,]*\s*%?\)?")
+
+
+def _scrub_numerics(text):
+    """Remove any numeric tokens and tidy whitespace/dangling separators."""
+    if not text:
+        return text
+    cleaned = _NUMERIC_TOKEN_RE.sub("", text)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip(" -—–")
+    return cleaned
 
 # Human-readable, NUMBER-FREE label templates keyed by feature. (good_label, bad_label)
 _LABELS = {
@@ -57,7 +73,12 @@ def _label(feature, positive):
     good, bad = _LABELS.get(feature,
                             ("Favourable signal within expected range",
                              "Unfavourable signal outside expected range"))
-    return good if positive else bad
+    return _scrub_numerics(good if positive else bad)
+
+
+# Import-time contract guard: assert no static label carries a digit.
+assert not any(re.search(r"\d", g + b) for g, b in _LABELS.values()), \
+    "explain.py reason labels must be number-free (ISSUE #2 contract)"
 
 
 _EXPLAINER_CACHE = {}

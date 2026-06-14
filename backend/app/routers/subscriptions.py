@@ -11,9 +11,9 @@ from app.models.marketplace_orm import Supplier, SaaS_Subscription
 from app.routers.suppliers import get_current_verified_supplier
 
 try:
-    import razorpay
+    import stripe
 except ImportError:
-    razorpay = None
+    stripe = None
 
 router = APIRouter(prefix="/api/v1/subscriptions", tags=["subscriptions"])
 
@@ -44,10 +44,7 @@ class SessionCreate(BaseModel):
 
 class VerifyRequest(BaseModel):
     plan_name: str
-    session_id: str  # For mock verification
-    razorpay_order_id: str | None = None
-    razorpay_payment_id: str | None = None
-    razorpay_signature: str | None = None
+    session_id: str  # For mock or Stripe verification
 
 @router.get("/plans")
 def get_plans():
@@ -118,30 +115,39 @@ def create_subscription_session(
     plan = PLANS[plan_name]
     amount_paise = int(plan["price_inr"] * 100)
 
-    # Check for Razorpay credentials
-    rzp_key_id = os.getenv("RAZORPAY_KEY_ID")
-    rzp_key_secret = os.getenv("RAZORPAY_KEY_SECRET")
+    # Check for Stripe credentials
+    stripe_key = os.getenv("STRIPE_SECRET_KEY")
+    backend_url = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
 
-    if rzp_key_id and rzp_key_secret and razorpay:
+    if stripe_key and stripe:
         try:
-            client = razorpay.Client(auth=(rzp_key_id, rzp_key_secret))
-            # Generate a unique receipt ID
-            receipt_id = f"rcpt_sub_{supplier.id}_{uuid.uuid4().hex[:6]}"
-            # Create Razorpay Order
-            rzp_order = client.order.create({
-                "amount": amount_paise,
-                "currency": "INR",
-                "receipt": receipt_id,
-                "notes": {
-                    "supplier_id": str(supplier.id),
-                    "plan_name": plan_name
-                }
-            })
+            stripe.api_key = stripe_key
+            session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                line_items=[{
+                    "price_data": {
+                        "currency": "inr",
+                        "product_data": {
+                            "name": f"VoltLife Battery SaaS - {plan_name} Plan",
+                            "description": plan["description"],
+                        },
+                        "unit_amount": amount_paise,
+                    },
+                    "quantity": 1,
+                }],
+                mode="payment",
+                metadata={
+                    "plan_name": plan_name,
+                    "supplier_id": str(supplier.id)
+                },
+                success_url=f"{backend_url}/subscriptions/checkout-success?session_id={{CHECKOUT_SESSION_ID}}&plan_name={plan_name}",
+                cancel_url=f"{backend_url}/subscriptions/checkout-cancel?plan_name={plan_name}",
+            )
             return {
-                "session_id": rzp_order["id"],
-                "checkout_url": None, # checkout rendered in frontend using script tag
+                "session_id": session.id,
+                "checkout_url": session.url,
                 "amount_paise": amount_paise,
-                "key_id": rzp_key_id,
+                "key_id": os.getenv("STRIPE_PUBLISHABLE_KEY", "stripe_test_key"),
                 "is_mock": False
             }
         except Exception as e:
@@ -154,7 +160,7 @@ def create_subscription_session(
         "session_id": mock_session_id,
         "checkout_url": f"/verify-mock-sub?session_id={mock_session_id}&plan={plan_name}",
         "amount_paise": amount_paise,
-        "key_id": "rzp_test_mockkey",
+        "key_id": "stripe_test_mockkey",
         "is_mock": True
     }
 
@@ -171,33 +177,28 @@ def verify_subscription(
             detail={"error": {"code": "invalid_plan", "message": "Subscription plan not found"}}
         )
 
-    # 1. Verification of Payment Signature (Real or Mock)
+    # 1. Verification of Payment (Real or Mock)
     is_verified = False
     sub_id = data.session_id
 
-    rzp_key_id = os.getenv("RAZORPAY_KEY_ID")
-    rzp_key_secret = os.getenv("RAZORPAY_KEY_SECRET")
+    stripe_key = os.getenv("STRIPE_SECRET_KEY")
 
-    if rzp_key_id and rzp_key_secret and razorpay and data.razorpay_signature:
+    if stripe_key and stripe and not sub_id.startswith("MOCK_SUB_SESS_"):
         try:
-            client = razorpay.Client(auth=(rzp_key_id, rzp_key_secret))
-            # Verify signature
-            params_dict = {
-                'razorpay_order_id': data.razorpay_order_id,
-                'razorpay_payment_id': data.razorpay_payment_id,
-                'razorpay_signature': data.razorpay_signature
-            }
-            client.utility.verify_payment_signature(params_dict)
-            is_verified = True
-            sub_id = data.razorpay_order_id
+            stripe.api_key = stripe_key
+            session = stripe.checkout.Session.retrieve(sub_id)
+            if (session.payment_status == "paid" and 
+                session.metadata.get("plan_name") == plan_name and 
+                session.metadata.get("supplier_id") == str(supplier.id)):
+                is_verified = True
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"error": {"code": "signature_verification_failed", "message": "Razorpay signature verification failed"}}
+                detail={"error": {"code": "signature_verification_failed", "message": "Stripe session verification failed"}}
             )
     else:
         # Mock payment verification
-        if data.session_id.startswith("MOCK_SUB_SESS_"):
+        if sub_id.startswith("MOCK_SUB_SESS_"):
             is_verified = True
 
     if not is_verified:
@@ -219,7 +220,7 @@ def verify_subscription(
     # Create new active subscription
     new_sub = SaaS_Subscription(
         supplier_id=supplier.id,
-        stripe_subscription_id=sub_id, # store Razorpay/Mock ID in stripe_subscription_id column
+        stripe_subscription_id=sub_id, # store Stripe/Mock ID in stripe_subscription_id column
         plan_name=plan_name,
         status="active",
         expires_at=expires_at

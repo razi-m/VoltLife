@@ -5,8 +5,7 @@ from app.models.marketplace_orm import SaaS_Subscription
 
 def test_subscriptions_flow_and_gating(client: TestClient, db_session: Session, monkeypatch):
     # Mock environment keys to force mock mode in tests
-    monkeypatch.setenv("RAZORPAY_KEY_ID", "")
-    monkeypatch.setenv("RAZORPAY_KEY_SECRET", "")
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "")
 
     # 1. Reset demo to seed initial data
     headers = {"X-Demo-Key": "volt_secret_key"}

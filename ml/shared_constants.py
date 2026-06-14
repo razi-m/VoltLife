@@ -106,3 +106,58 @@ OUTPUT_CONTRACT_FIELDS = [
     "explanation",    # list[dict] {feature, value, impact, shap, label}
     "volt_ai",        # object {executive_summary, assessment_narrative, ...}
 ]
+
+# ---------------------------------------------------------------------------
+# CANONICAL CONTRACT RECONCILIATION (validation 2.0, ISSUE #3)
+#
+# Two contracts exist and they are reconciled — NOT in conflict:
+#
+#   ASSESSMENT_CORE_FIELDS (below) is the FROZEN cross-boundary contract. It is
+#   exactly the backend `app/schemas/ml.py::AssessmentResult` (9 fields). The
+#   backend constructs `AssessmentResult(**predict_output)` (pipeline.py); Pydantic
+#   v2 ignores unknown keys by default, so the ML layer may return a SUPERSET.
+#
+#   OUTPUT_CONTRACT_FIELDS (above) is that superset: the 9 core fields PLUS two
+#   ADDITIVE ML-layer extensions —
+#     - `recommendation` : consumed by the deployment/marketplace path & UI
+#     - `volt_ai`        : presentation-layer narratives (additive, never mutates core)
+#   Both are safely ignored by AssessmentResult and required by the demo/frontend,
+#   so they are retained. `explanation` and `reasons` ARE core (backend requires them).
+# ---------------------------------------------------------------------------
+ASSESSMENT_CORE_FIELDS = [
+    "soh_pct",     # float  [0,100]
+    "rul_cycles",  # int    [0,2400]
+    "rul_years",   # float  [0,8]
+    "rul_low",     # float  [0,8]
+    "rul_high",    # float  [0,8], rul_low <= rul_years <= rul_high
+    "grade",       # "S"|"A"|"B"|"C"|"D"
+    "confidence",  # "high"|"medium"|"low"
+    "explanation", # list[dict]
+    "reasons",     # list[str]
+]
+# ML-layer additive extensions beyond the frozen backend core.
+OUTPUT_CONTRACT_EXTENSIONS = ["recommendation", "volt_ai"]
+
+# ---------------------------------------------------------------------------
+# Expected per-feature ranges (validation 2.0, optional cleanup — DOCUMENTATION
+# ONLY). These are typical operating envelopes for reference/QA; they are NOT
+# used for normalization or confidence (that uses the trained ood_envelope), so
+# adding them changes no behaviour. (low, high) in each feature's native unit.
+# ---------------------------------------------------------------------------
+FEATURE_RANGES = {
+    "cycle_count":              (0.0, 2400.0),    # cycles
+    "capacity_fade_pct":        (0.0, 60.0),      # %
+    "fade_rate":                (0.0, 5.0e-3),    # fraction/cycle
+    "fade_acceleration":        (-1.0e-4, 1.0e-4),# fraction/cycle^2
+    "avg_temp_c":               (15.0, 50.0),     # C
+    "max_temp_c":               (20.0, 70.0),     # C
+    "thermal_stress_hours":     (0.0, 500.0),     # hours > 45C
+    "internal_resistance_mohm": (15.0, 600.0),    # mOhm
+    "ir_growth_pct":            (-5.0, 100.0),    # %
+    "cv_phase_fraction":        (0.0, 0.6),       # fraction
+    "voltage_slope":            (-5.0e-3, 5.0e-3),# V/cycle
+    "voltage_variance":         (0.0, 0.1),       # V^2
+    "charge_efficiency":        (0.80, 1.0),      # ratio
+    "discharge_efficiency":     (0.78, 1.0),      # ratio
+}
+assert set(FEATURE_RANGES) == set(FEATURE_KEYS), "FEATURE_RANGES must cover all 14 canonical features"

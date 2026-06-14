@@ -71,7 +71,7 @@ exists to commercialize and distribute the intelligence output — never to upst
 ═══════════════════════════════════════════════════════════════
 This product is a demo for judges. Under no circumstances integrate live money,
 live orders, or live shipping:
-  - PAYMENTS: Razorpay runs in TEST MODE ONLY, or a fully mocked checkout. Use Razorpay
+  - PAYMENTS: Stripe runs in TEST MODE ONLY, or a fully mocked checkout. Use Stripe
     test keys / test cards, or a simulated "payment success" path. NEVER move real
     money, never use live keys.
   - ORDERS: orders are records in the demo DB only. Nothing is actually fulfilled.
@@ -163,7 +163,7 @@ IMPLEMENTATION PLAN containing:
      tables, migration strategy consistent with the repo.
   c. API surface — every NEW endpoint (method, path, request, response) + any existing
      endpoint you must extend (justified).
-  d. Integration adapters — Gemini, Razorpay(TEST), Porter(MOCK), n8n: interface + env vars
+  d. Integration adapters — Gemini, Stripe(TEST), Porter(MOCK), n8n: interface + env vars
      + MOCK fallback (demo runs with no keys).
   e. Frontend surface — new routes/pages/components reusing existing design; no rewrites.
   f. "Existing-code impact" table — every existing file you'll modify, exact change, and
@@ -246,8 +246,8 @@ REQUIRED STRUCTURE — every readiness file MUST contain these sections, in orde
     (Mark who owns this phase.)
 
   ## External Dependencies   (mark each: Required | Optional | Mockable)
-    - Gemini / Razorpay / Porter / n8n / PostgreSQL / Railway / Vercel
-    (Reflect DEMO-ONLY mode: e.g. Razorpay = Mockable/TEST, Porter = Mockable,
+    - Gemini / Stripe / Porter / n8n / PostgreSQL / Railway / Vercel
+    (Reflect DEMO-ONLY mode: e.g. Stripe = Mockable/TEST, Porter = Mockable,
      n8n = Optional/Mockable, Gemini = Mockable.)
 
   ## Blocking Risks
@@ -332,8 +332,8 @@ PHASE 8 — Quote Engine (pricing + MOCK Porter)
   locked here. Porter is mocked (deterministic) — no real booking.
   Acceptance: deterministic quote math; quote persisted; zero inventory change.
 
-PHASE 9 — Payment (Razorpay TEST/MOCK) + Inventory Locking + Order Creation
-  "Proceed to Payment" → Razorpay Checkout in TEST mode (test cards) OR a mocked success path.
+PHASE 9 — Payment (Stripe TEST/MOCK) + Inventory Locking + Order Creation
+  "Proceed to Payment" → Stripe Checkout in TEST mode (test cards) OR a mocked success path.
   On success ONLY: lock/decrement inventory (e.g. 138 → 100 for 38), create the demo order,
   trigger the logistics simulation. Inventory must NEVER lock at quote time — only after
   confirmed (simulated) payment, via an IDEMPOTENT webhook/callback. No real money ever.
@@ -391,7 +391,7 @@ PHASE 13 — Seller Dashboard (BASIC ONLY)
   or forecasting. Acceptance: basic dashboard reads from real data.
 
 PHASE 14 — SaaS Subscription Billing (demo)
-  Platform revenue via Razorpay subscriptions (Monthly/Annual/Enterprise) in TEST/mock mode. NO
+  Platform revenue via Stripe subscriptions (Monthly/Annual/Enterprise) in TEST/mock mode. NO
   commissions, NO transaction fees, NO marketplace cuts anywhere. Acceptance: plans gate supplier
   access per policy (simulated billing only).
 
@@ -404,13 +404,13 @@ PHASE 15 — Integration Tests, Demo Seed & Validation
 ═══════════════════════════════════════════════════════════════
 5. EXTERNAL INTEGRATIONS — POLICY (DEMO)
 ═══════════════════════════════════════════════════════════════
-  - Gemini, Razorpay, Porter, n8n each sit behind a small ADAPTER with (1) a real
+  - Gemini, Stripe, Porter, n8n each sit behind a small ADAPTER with (1) a real
     implementation driven by env vars and (2) a deterministic MOCK fallback used when the
     key/URL is absent. The demo MUST run end-to-end with NO keys.
-  - Razorpay = TEST mode (rzp_test_) or mock (no live keys, no real charges). Porter = MOCK only. n8n =
+  - Stripe = TEST mode or mock (no live keys, no real charges). Porter = MOCK only. n8n =
     optional (in-app simulation by default, see Phase 10). Gemini = mock fallback.
   - Never hardcode secrets. Add new env vars to backend/.env.example ONLY (additive):
-    GEMINI_API_KEY, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET (all TEST/blank),
+    GEMINI_API_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
     PORTER_API_KEY (unused/mock), N8N_WEBHOOK_URL, N8N_ENABLED, BACKEND_BASE_URL.
     Never print or commit real keys.
 
