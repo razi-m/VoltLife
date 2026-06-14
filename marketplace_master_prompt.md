@@ -444,7 +444,7 @@ PHASE 15 — Integration Tests, Demo Seed & Validation
   - ADD, don't modify. Touch existing files only when unavoidable and justified.
   - ml/ is frozen. Existing battery-domain schema + endpoints are frozen.
   - No hallucinated symbols, libraries, columns, endpoints, or data.
-  - DEMO ONLY: no real money, orders, or delivery. Razorpay test/mock, Porter mock, n8n optional.
+  - DEMO ONLY: no real money, orders, or delivery. Stripe test/mock, Porter mock, n8n optional.
   - NO MEDIA: no images/videos/documents/PDF/media uploads anywhere — listings are 100%% data-driven.
   - AI intelligence layer is the primary product + moat; marketplace is only the commercialization layer.
   - Inventory locks only after (simulated) payment. Porter-only logistics. SaaS-only revenue.
@@ -455,3 +455,4 @@ PHASE 15 — Integration Tests, Demo Seed & Validation
     phase, generate a report, or do something else. Never chain phases without my OK.
   - Keep all existing tests green at every step. Stop and ask if blocked.
 ```
+                                                                      

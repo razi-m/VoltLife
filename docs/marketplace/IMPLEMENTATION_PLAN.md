@@ -22,7 +22,7 @@
 
 **Frontend (React + Vite + react-router + R3F; `recharts` present):**
 - Pages: Dashboard, Assess, Registry, Deploy, Analytics, Impact, AI, **Marketplace** (auction view). Routes in `src/App.tsx`. API via `src/lib/api.ts` (`API_BASE = VITE_API_URL || http://localhost:8000`, fetch wrapper, `WS_URL`).
-- **No map library, no Razorpay library, no state lib** (zustand/react-query) installed.
+- **No map library, no Stripe library, no state lib** (zustand/react-query) installed.
 
 **ML (FROZEN, `ml/`):** `predict()` returns the 11-field contract; outputs SoH/RUL/grade/confidence/recommendation/use-cases. Reached only via the existing backend pipeline.
 
@@ -47,7 +47,7 @@
 | `requirement` | raw_text, rec_grade, rec_capacity_kwh, rec_quantity, rec_use_cases_json, source(gemini/mock) | buyer_id → buyer_account (nullable) |
 | `quote` | grade, quantity, battery_cost, transport_cost, total_cost, delivery_days, porter_vehicle, status | buyer_id, listing_id |
 | `order` | grade, quantity, order_value, payment_status, tracking_status, eta, demo_mode | quote_id, buyer_id, supplier_id, listing_id |
-| `payment` | provider(razorpay-test/mock), amount_paise, currency(INR), status, razorpay_order_id, razorpay_payment_id, idempotency_key(unique) | order_id |
+| `payment` | provider(stripe-test/mock), amount_cents, currency(USD), status, stripe_session_id, stripe_payment_intent, idempotency_key(unique) | order_id |
 | `tracking_event` | state, note, created_at | order_id |
 | `notification` | audience(seller/buyer), message | order_id |
 | `subscription` | plan(monthly/annual/enterprise), status, demo_mode | supplier_id |
@@ -65,7 +65,7 @@
 - `routers/requirements.py` — POST `/requirements` (Gemini adapter → grade/capacity/qty/use-cases), GET `/requirements/{id}/matches` (match to real published listings).
 - `routers/buyers.py` — POST `/buyers/register`, POST `/buyers/login`, GET `/buyers/me`, GET `/buyers/orders`.
 - `routers/quotes.py` — POST `/quotes` (tier pricing + Porter mock → transport/eta; **no inventory lock**), GET `/quotes/{id}`.
-- `routers/payments.py` — POST `/payments/create-order` (Razorpay test or mock), POST `/payments/verify` (signature check), POST `/payments/webhook` (idempotent → lock/decrement inventory + create order + trigger logistics).
+- `routers/payments.py` — POST `/payments/create-order` (Stripe test or mock), POST `/payments/verify` (signature check), POST `/payments/webhook` (idempotent → lock/decrement inventory + create order + trigger logistics).
 - `routers/orders.py` — GET `/orders/{id}`, POST `/orders/{id}/confirm-receipt`, POST `/orders/{id}/raise-issue`.
 - `routers/logistics.py` — POST `/logistics/callback` (n8n or simulator advances tracking state, idempotent), POST `/logistics/{order}/advance` (demo manual step).
 - `routers/subscriptions.py` — GET `/subscriptions/plans`, POST `/subscriptions/subscribe` (demo).
@@ -80,11 +80,11 @@ New Pydantic schemas live in a NEW module `backend/app/schemas/marketplace.py` (
 | Adapter | Real driver (env) | Fallback |
 |---|---|---|
 | Gemini | `GEMINI_API_KEY` | deterministic mock: use-case text → grade/capacity/qty/use-cases |
-| Razorpay | `RAZORPAY_KEY_ID`+`RAZORPAY_KEY_SECRET` (TEST) | mock "payment success" path (INR/paise) |
+| Stripe | `STRIPE_PUBLISHABLE_KEY`+`STRIPE_SECRET_KEY` (TEST) | mock "payment success" path (USD (test mode)) |
 | Porter | (always mock for demo) | distance-heuristic vehicle/cost/ETA |
 | n8n | `N8N_WEBHOOK_URL` + `N8N_ENABLED` | in-app logistics simulation |
 
-`.env.example` additions (additive only): `GEMINI_API_KEY=`, `RAZORPAY_KEY_ID=`, `RAZORPAY_KEY_SECRET=`, `RAZORPAY_WEBHOOK_SECRET=`, `PORTER_API_KEY=`, `N8N_WEBHOOK_URL=`, `N8N_ENABLED=false`, `BACKEND_BASE_URL=`.
+`.env.example` additions (additive only): `GEMINI_API_KEY=`, `STRIPE_PUBLISHABLE_KEY=`, `STRIPE_SECRET_KEY=`, `STRIPE_WEBHOOK_SECRET=`, `PORTER_API_KEY=`, `N8N_WEBHOOK_URL=`, `N8N_ENABLED=false`, `BACKEND_BASE_URL=`.
 
 ---
 
@@ -93,7 +93,7 @@ New Pydantic schemas live in a NEW module `backend/app/schemas/marketplace.py` (
 - Supplier: `/supplier/register`, `/supplier/login`, `/supplier/dashboard` (upload → inventory → pricing → publish; orders; revenue).
 - Buyer/public: `/shop` (marketplace + India map + search + AI Requirement Builder), `/shop/seller/:id`, `/shop/listing/:id`, `/checkout`, `/buyer/orders`.
 - Reuse `components/ui`, `components/layout`, `lib/api.ts`. **Do not touch** existing `Marketplace.tsx` (auction view) — new commerce lives under `/shop`.
-- New deps to add (justified in plan, not yet installed): `react-leaflet` + `leaflet` (OSS India map, no token); Razorpay Checkout via `checkout.js` script tag (NO npm dep) for test mode — otherwise a mock checkout page.
+- New deps to add (justified in plan, not yet installed): `react-leaflet` + `leaflet` (OSS India map, no token); Stripe Checkout via `checkout.js` script tag (NO npm dep) for test mode — otherwise a mock checkout page.
 
 ---
 
@@ -104,9 +104,9 @@ New Pydantic schemas live in a NEW module `backend/app/schemas/marketplace.py` (
 | `backend/app/main.py` | add `include_router(...)` lines for each new router | new endpoints must be mounted | additive lines only; existing routers/handlers untouched |
 | `backend/app/models/__init__`/import site | ensure new ORM module is imported before `create_all` | new tables must register | additive import; existing models unchanged |
 | `backend/.env.example` | append new env vars | adapters need config keys | additive; no existing var changed |
-| `backend/requirements.txt` | add (if used) `passlib[bcrypt]`, `python-jose` (demo auth), `razorpay` | auth + payment adapters | additive deps; httpx already present |
+| `backend/requirements.txt` | add (if used) `passlib[bcrypt]`, `python-jose` (demo auth), `stripe` | auth + payment adapters | additive deps; httpx already present |
 | `frontend/src/App.tsx` | add `<Route>` entries for new pages | new pages must be reachable | additive routes; existing routes untouched |
-| `frontend/package.json` | add `react-leaflet`,`leaflet` (Razorpay Checkout loads via `checkout.js` script — no npm dep) | map + India geo | additive deps |
+| `frontend/package.json` | add `react-leaflet`,`leaflet` (Stripe Checkout loads via `checkout.js` script — no npm dep) | map + India geo | additive deps |
 
 **Everything else is NEW files.** No existing table/column/endpoint/response shape is altered. `ml/` is not touched.
 
@@ -122,7 +122,7 @@ New Pydantic schemas live in a NEW module `backend/app/schemas/marketplace.py` (
 6. **Gemini requirement builder + matching** — text → recommendation → matched real listings (mock works keyless).
 7. **Discovery (map/search/profiles/inventory cards)** — renders from real APIs; data-only cards.
 8. **Quote engine (pricing + mock Porter)** — deterministic quote; persisted; zero inventory change.
-9. **Payment (Razorpay test/mock) + inventory lock + order** — success decrements inventory exactly once (idempotent); failure leaves it untouched.
+9. **Payment (Stripe test/mock) + inventory lock + order** — success decrements inventory exactly once (idempotent); failure leaves it untouched.
 10. **n8n orchestration (standalone)** — order advances via in-app sim by default; same callback works with real n8n + imported workflow JSON.
 11. **Logistics simulation/tracking** — order walks all states; notifications recorded.
 12. **Order tracking & completion** — Confirm Receipt → completed; Raise Issue → support ticket.
@@ -139,7 +139,7 @@ Each phase will be preceded by `docs/phase-readiness/PHASE_<nn>_READINESS.md` (v
 1. **SoC (State of Charge):** the ML assessment outputs SoH/RUL/grade but **NOT SoC** (SoC is a live measurement, not produced by the grading model). Default: display SoC as a clearly-labeled **nominal/demo** value (or omit), not a fabricated prediction. Confirm: show nominal SoC, or drop SoC from listings?
 2. **Auth depth:** demo-grade auth (passlib hash + simple bearer token) vs full JWT/refresh. Default: lightweight demo auth.
 3. **Map library:** `react-leaflet`+`leaflet` (OSS, no token) vs Mapbox (needs token). Default: react-leaflet.
-4. **Razorpay:** real **test-mode** Checkout (rzp_test_ keys, INR) vs **fully mocked** checkout (zero dependency). Default: adapter supports both; demo uses mock unless test keys present. Currency INR, amounts in paise.
+4. **Stripe:** real **test-mode** Checkout (sk_test_ keys, INR) vs **fully mocked** checkout (zero dependency). Default: adapter supports both; demo uses mock unless test keys present. Currency INR, amounts in paise.
 5. **Existing `/marketplace` auction view:** keep untouched; new commerce flow under `/shop`. Default: keep both.
 
 ---
