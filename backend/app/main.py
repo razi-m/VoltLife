@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.core.logging import setup_logging, logger
 from app.core.events import manager as ws_manager
 from app.db.database import init_db, SessionLocal
-from app.routers import batteries, jobs, sites, impact, demo, healthz, dashboard, deployments, analytics, ai, marketplace
+from app.routers import batteries, jobs, sites, impact, demo, healthz, dashboard, deployments, analytics, ai, marketplace, suppliers, buyers, requirements, quotes, payments, logistics
 
 # Initialize Logging
 setup_logging()
@@ -96,6 +96,14 @@ app.include_router(deployments.router)  # /api/v1/deployments
 app.include_router(analytics.router)  # /api/v1/analytics
 app.include_router(ai.router)  # /api/v1/ai
 app.include_router(marketplace.router)  # /api/v1/marketplace
+app.include_router(suppliers.router)
+app.include_router(buyers.router)
+app.include_router(requirements.router)
+app.include_router(quotes.router)
+app.include_router(payments.router)
+app.include_router(logistics.router)
+
+
 
 
 # Database check and seeding on startup

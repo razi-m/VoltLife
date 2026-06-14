@@ -21,4 +21,11 @@ class ManualSettings:
 
         self.MODEL_PATH = os.getenv("MODEL_PATH", "app/ml/models/model_v1.pkl")
 
+        # Parse n8n configuration
+        n8n_enabled_raw = os.getenv("N8N_ENABLED", "false").lower()
+        self.N8N_ENABLED = n8n_enabled_raw in ("true", "1", "yes")
+        self.N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL", "")
+        self.BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
+
 settings = ManualSettings()
+

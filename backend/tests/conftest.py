@@ -85,6 +85,11 @@ from fastapi.testclient import TestClient
 from app.main import app as fastapi_app
 from app.db.database import Base, get_db
 from app.models.orm import Battery, Assessment, Deployment, TelemetrySummary, LifecycleEvent, Site
+from app.models.marketplace_orm import (
+    SupportTicket, PaymentEvent, ShipmentTrackingEvent, Order, Quote,
+    Requirement, Listing, PricingTier, InventoryLot, SupplierVerification,
+    SupplierUser, Supplier, BuyerAccount
+)
 from app.seed.seed import seed_sites
 
 
@@ -103,8 +108,22 @@ def _test_database():
 def db_session(_test_database):
     """Function-scoped clean state: wipe fleet tables, reseed sites, clear job registry."""
     db = TestingSessionLocal()
-    for model in (Deployment, Assessment, TelemetrySummary, LifecycleEvent, Battery):
+    
+    from app.models.marketplace_orm import (
+        SupportTicket, PaymentEvent, ShipmentTrackingEvent, Order, Quote,
+        Requirement, Listing, PricingTier, InventoryLot, SupplierVerification,
+        SupplierUser, Supplier, BuyerAccount
+    )
+    
+    # Delete in reverse topological order to satisfy foreign key dependencies
+    for model in (
+        SupportTicket, PaymentEvent, ShipmentTrackingEvent, Order, Quote,
+        Requirement, Listing, PricingTier, InventoryLot, SupplierVerification,
+        SupplierUser, Supplier, BuyerAccount,
+        Deployment, Assessment, TelemetrySummary, LifecycleEvent, Battery
+    ):
         db.query(model).delete()
+        
     db.commit()
     seed_sites(db)
     app.services.pipeline.JOBS.clear()

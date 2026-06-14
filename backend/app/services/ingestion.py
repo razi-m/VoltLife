@@ -2,7 +2,7 @@ import csv
 import io
 import json
 from datetime import datetime, date
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from sqlalchemy.orm import Session
 from app.models.orm import Battery, TelemetrySummary
 from shared.constants import INDIA_BOUNDS, MAX_INGESTION_ROWS
@@ -69,7 +69,7 @@ def parse_csv_file(file_content: str) -> List[Dict[str, Any]]:
     return [row for row in reader]
 
 
-def process_ingestion(db: Session, rows: List[Dict[str, Any]]) -> Tuple[List[int], List[Dict[str, Any]]]:
+def process_ingestion(db: Session, rows: List[Dict[str, Any]], supplier_id: Optional[int] = None) -> Tuple[List[int], List[Dict[str, Any]]]:
     """
     Processes a list of parsed rows, validates them, and inserts valid rows to the DB.
     Returns a tuple of (inserted_battery_ids, rejects_list).
@@ -123,7 +123,8 @@ def process_ingestion(db: Session, rows: List[Dict[str, Any]]) -> Tuple[List[int
                 source_state=str(row["source_state"]).strip() if row.get("source_state") else None,
                 lat=float(row["lat"]),
                 lng=float(row["lng"]),
-                status="ingested"
+                status="ingested",
+                supplier_id=supplier_id
             )
             db.add(battery)
             db.flush() # Populate battery.id

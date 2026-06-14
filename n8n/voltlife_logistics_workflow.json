@@ -1,0 +1,309 @@
+{
+  "name": "VoltLife Logistics Simulation Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voltlife/order-paid",
+        "options": {}
+      },
+      "id": "webhook-node-id",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const orderId = items[0].json.body.order_id;\nconst amount = items[0].json.body.amount;\nconst buyerId = items[0].json.body.buyer_id;\n\n// Construct a mock Porter booking payload\nreturn [{\n  json: {\n    order_id: orderId,\n    amount: amount,\n    buyer_id: buyerId,\n    porter_booking: {\n      booking_id: 'PRT-' + Math.floor(Math.random() * 1000000),\n      carrier: 'Porter Local Fleet',\n      pickup_lat: 18.52,\n      pickup_lng: 73.85,\n      eta_minutes: 45,\n      vehicle: 'Tata Ace (Chota Hathi)'\n    }\n  }\n}];"
+      },
+      "id": "function-node-id",
+      "name": "Build Porter Booking Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_BASE_URL || 'http://localhost:8000'}}/api/v1/logistics/callback",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"order_id\": {{$json[\"order_id\"]}},\n  \"status\": \"porter_booked\"\n}",
+        "options": {}
+      },
+      "id": "callback-porter-booked-id",
+      "name": "Callback: Porter Booked",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "wait-1-id",
+      "name": "Wait 5s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_BASE_URL || 'http://localhost:8000'}}/api/v1/logistics/callback",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"order_id\": {{$json[\"order_id\"]}},\n  \"status\": \"seller_notified\"\n}",
+        "options": {}
+      },
+      "id": "callback-seller-notified-id",
+      "name": "Callback: Seller Notified",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "wait-2-id",
+      "name": "Wait 5s ",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_BASE_URL || 'http://localhost:8000'}}/api/v1/logistics/callback",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"order_id\": {{$json[\"order_id\"]}},\n  \"status\": \"buyer_notified\"\n}",
+        "options": {}
+      },
+      "id": "callback-buyer-notified-id",
+      "name": "Callback: Buyer Notified",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "wait-3-id",
+      "name": "Wait 5s  ",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_BASE_URL || 'http://localhost:8000'}}/api/v1/logistics/callback",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"order_id\": {{$json[\"order_id\"]}},\n  \"status\": \"shipment_started\"\n}",
+        "options": {}
+      },
+      "id": "callback-shipment-started-id",
+      "name": "Callback: Shipment Started",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "wait-4-id",
+      "name": "Wait 5s   ",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_BASE_URL || 'http://localhost:8000'}}/api/v1/logistics/callback",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"order_id\": {{$json[\"order_id\"]}},\n  \"status\": \"in_transit\"\n}",
+        "options": {}
+      },
+      "id": "callback-in-transit-id",
+      "name": "Callback: In Transit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2100, 300]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "wait-5-id",
+      "name": "Wait 5s    ",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2300, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_BASE_URL || 'http://localhost:8000'}}/api/v1/logistics/callback",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"order_id\": {{$json[\"order_id\"]}},\n  \"status\": \"delivered\"\n}",
+        "options": {}
+      },
+      "id": "callback-delivered-id",
+      "name": "Callback: Delivered",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2500, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Porter Booking Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Porter Booking Payload": {
+      "main": [
+        [
+          {
+            "node": "Callback: Porter Booked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback: Porter Booked": {
+      "main": [
+        [
+          {
+            "node": "Wait 5s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5s": {
+      "main": [
+        [
+          {
+            "node": "Callback: Seller Notified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback: Seller Notified": {
+      "main": [
+        [
+          {
+            "node": "Wait 5s ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5s ": {
+      "main": [
+        [
+          {
+            "node": "Callback: Buyer Notified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback: Buyer Notified": {
+      "main": [
+        [
+          {
+            "node": "Wait 5s  ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5s  ": {
+      "main": [
+        [
+          {
+            "node": "Callback: Shipment Started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback: Shipment Started": {
+      "main": [
+        [
+          {
+            "node": "Wait 5s   ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5s   ": {
+      "main": [
+        [
+          {
+            "node": "Callback: In Transit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback: In Transit": {
+      "main": [
+        [
+          {
+            "node": "Wait 5s    ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5s    ": {
+      "main": [
+        [
+          {
+            "node": "Callback: Delivered",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionMode": "regular"
+  }
+}

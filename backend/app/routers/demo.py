@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header, BackgroundTasks, 
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.orm import Battery, TelemetrySummary, Assessment, Deployment, LifecycleEvent, Site
-from app.seed.seed import seed_sites
+from app.seed.seed import seed_sites, seed_marketplace_demo_users
 from app.services.pipeline import JOBS
 from app.core.events import manager as ws_manager
 from app.core.config import settings
@@ -60,6 +60,9 @@ async def reset_demo(
         
     # Reseed sites table
     seed_sites(db)
+    
+    # Reseed marketplace demo users (buyer + verified supplier)
+    seed_marketplace_demo_users(db)
     
     # Clear WebSocket event ring buffer
     ws_manager.ring_buffer.clear()

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.db.database import get_db
 from app.models.orm import Battery, Assessment, Deployment, LifecycleEvent
+from app.models.marketplace_orm import InventoryLot, Listing, PricingTier, Supplier
 from app.services.aadhaar import append_lifecycle_event
 from app.core.logging import logger
 
@@ -191,42 +192,186 @@ def place_auction_bid(battery_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/marketplace/lots")
-def get_featured_lots():
+def get_featured_lots(
+    grade_filter: Optional[str] = None,
+    chemistry_filter: Optional[str] = None,
+    supplier_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
     """
-    Returns featured enterprise bulk lots.
+    Returns active (published) enterprise bulk lots from database.
+    Supports filtering by grade, chemistry, and supplier.
+    If database has none, supplies static fallback rows matching mockup design.
     """
+    # Query published lots
+    query = db.query(InventoryLot).join(Listing, InventoryLot.id == Listing.inventory_lot_id).filter(
+        Listing.is_published == True,
+        InventoryLot.status == "listed",
+        InventoryLot.available_quantity > 0
+    )
+    
+    if grade_filter:
+        query = query.filter(InventoryLot.grade == grade_filter)
+    if chemistry_filter:
+        query = query.filter(InventoryLot.chemistry == chemistry_filter)
+    if supplier_id:
+        query = query.filter(InventoryLot.supplier_id == supplier_id)
+        
+    results = query.all()
+    
+    items = []
+    
+    # Static image pool for mockup compatibility
+    image_pool = [
+        "https://lh3.googleusercontent.com/aida-public/AB6AXuBWdnmGAmCvhl7do2EmitTzstpjitP6pkCWA0L35smUpPwmINmm8tD8gSyGJo2GNcBMsggP8dFJ0OLaIvv88NkwEIVl9qAfn8zzuoQZPsEvQQuEcrUGUh2MDs9qS7MJJTuFoGA7DryntTsRmzgzGE403GfYXrxGrrGIZYkl5ww_yUOq4KcCAM4HGrIhaOiTvS-XETlk3dgFlAZL7n_iaBwp8yfWyO4FPvi3pWdTuuMAVmCHPmlEHBmq0_gdhAPDf8Uv4XKwSB0CpZc",
+        "https://lh3.googleusercontent.com/aida-public/AB6AXuBhIuRCuoA1eKpAiSw_aAbGkpePTpKHKWc9rotHY96eRDrEkPqTMuP6LIRHiOXq6suKbo9pgRX11YTDaA84XZO1ZO2e4zBxkiGSwDxclrcjkcBALQongQNZQkXqIVLDnUXXE4uOX24v94QvryP0izJWZjXjJPy3tBUVOQtniXRjzNiwKv6f8XRJeIwPNpB2jQnoHqTCX3800lqjzCtv9ExyOTDjbzUWMIciPiqDga-zLYJ8s13OlMg0hHdxYAuj4W014z_--Dgs4kU",
+        "https://lh3.googleusercontent.com/aida-public/AB6AXuCiin-wfHHfLD42VVBkbFkbveLDmlX3PxIt3AkLNgim7u0Hl16Xj-1P3g9KO6E_NVTI9Fts2XFW50F_Rw9xOAP4wSXUo1uQBrI1ozJFwSoAh-Aoy6isMd1NC8hqvqJ6IEd5FjloIjrooixb1CibS2YGpweFfxRmCEFegjrQYi-J6nB4GUlv099MhgD2Fm0tSik-Azs6VQYuPb_M94evOD-mORgkQpKtoVcDSY7d5a3REJZiZizbi1piAH1y6_XwG-bV0_q8QzbMK-c"
+    ]
+    
+    for lot in results:
+        listing = db.query(Listing).filter(Listing.inventory_lot_id == lot.id).first()
+        supplier = db.query(Supplier).filter(Supplier.id == lot.supplier_id).first()
+        
+        # Get pricing tiers
+        tiers = db.query(PricingTier).filter(PricingTier.inventory_lot_id == lot.id).order_by(PricingTier.min_quantity).all()
+        if tiers:
+            min_price = min(float(t.price_per_kwh) for t in tiers)
+            max_price = max(float(t.price_per_kwh) for t in tiers)
+            if min_price == max_price:
+                price_str = f"${min_price:,.0f}/kWh"
+            else:
+                price_str = f"${min_price:,.0f}-${max_price:,.0f}/kWh"
+        else:
+            price_str = "$--/kWh"
+            
+        img_idx = lot.id % len(image_pool)
+        
+        items.append({
+            "id": f"lot-{lot.id}",
+            "title": listing.title if listing else f"GRADE {lot.grade} {lot.chemistry} Lot",
+            "price": price_str,
+            "units": f"{lot.available_quantity}x UNITS",
+            "origin": f"{supplier.company_name if supplier else 'Unknown'} ({lot.chemistry})",
+            "grade": lot.grade,
+            "chemistry": lot.chemistry,
+            "total_capacity_kwh": float(lot.total_capacity_kwh),
+            "available_quantity": lot.available_quantity,
+            "avg_soh": f"{int(lot.avg_soh)}%",
+            "avg_rul_years": float(lot.avg_rul_years),
+            "moq": listing.moq if listing else 1,
+            "description": listing.description if listing else "",
+            "certification": f"Grade {lot.grade} Assessed",
+            "img_alt": "Commercial battery storage",
+            "img_url": image_pool[img_idx],
+            "supplier_id": lot.supplier_id,
+            "pricing_tiers": [
+                {"min_quantity": t.min_quantity, "price_per_kwh": float(t.price_per_kwh)}
+                for t in tiers
+            ]
+        })
+        
+    if not items:
+        # Fallback to mockup baseline if DB is empty
+        fallback_lots = [
+            {
+                "id": "lot-1",
+                "title": "Tier-1 Microgrid Bundle",
+                "price": "$145/kWh",
+                "units": "50x UNITS",
+                "origin": "Tesla Model 3 Salvage (NMC)",
+                "grade": "A",
+                "chemistry": "NMC",
+                "total_capacity_kwh": 2400.0,
+                "available_quantity": 50,
+                "avg_soh": "88%",
+                "avg_rul_years": 4.2,
+                "moq": 5,
+                "description": "Premium NMC bulk battery bundle matching grid support standards. Inspected and approved by VoltLife grading.",
+                "certification": "UL-1974 Ready",
+                "img_alt": "Battery warehouse storage",
+                "img_url": image_pool[0],
+                "supplier_id": 1,
+                "pricing_tiers": [{"min_quantity": 1, "price_per_kwh": 150.0}, {"min_quantity": 10, "price_per_kwh": 145.0}]
+            },
+            {
+                "id": "lot-2",
+                "title": "LFP Grid Stabilizer Lot",
+                "price": "$115/kWh",
+                "units": "120x UNITS",
+                "origin": "BYD Transit Fleet (LFP)",
+                "grade": "B",
+                "chemistry": "LFP",
+                "total_capacity_kwh": 4800.0,
+                "available_quantity": 120,
+                "avg_soh": "82%",
+                "avg_rul_years": 3.1,
+                "moq": 10,
+                "description": "LFP chemistry packs ideal for stationary solar systems and industrial microgrids. High cycle life design.",
+                "certification": "VoltLife Grade B+",
+                "img_alt": "Battery assembly line",
+                "img_url": image_pool[1],
+                "supplier_id": 2,
+                "pricing_tiers": [{"min_quantity": 1, "price_per_kwh": 125.0}, {"min_quantity": 20, "price_per_kwh": 115.0}]
+            },
+            {
+                "id": "lot-3",
+                "title": "NMC Performance Batch",
+                "price": "$175/kWh",
+                "units": "75x UNITS",
+                "origin": "Rivian Service Center (NMC)",
+                "grade": "S",
+                "chemistry": "NMC",
+                "total_capacity_kwh": 3750.0,
+                "available_quantity": 75,
+                "avg_soh": "91%",
+                "avg_rul_years": 5.8,
+                "moq": 2,
+                "description": "Automotive-grade NMC battery modules showing minimal degradation. Ready for commercial second-life support.",
+                "certification": "OEM Validated",
+                "img_alt": "Commercial battery storage",
+                "img_url": image_pool[2],
+                "supplier_id": 3,
+                "pricing_tiers": [{"min_quantity": 1, "price_per_kwh": 190.0}, {"min_quantity": 5, "price_per_kwh": 175.0}]
+            },
+        ]
+        
+        # Apply filters in fallback mode
+        filtered_fallback = []
+        for lot in fallback_lots:
+            if grade_filter and lot["grade"] != grade_filter:
+                continue
+            if chemistry_filter and lot["chemistry"] != chemistry_filter:
+                continue
+            if supplier_id and lot["supplier_id"] != supplier_id:
+                continue
+            filtered_fallback.append(lot)
+            
+        return filtered_fallback
+        
+    return items
+
+
+@router.get("/marketplace/suppliers")
+def get_marketplace_suppliers(db: Session = Depends(get_db)):
+    """
+    Returns a list of verified suppliers for map/discovery.
+    """
+    suppliers = db.query(Supplier).filter(Supplier.is_verified == True).all()
+    # If DB is empty, supply static fallback suppliers matching seeded demand sites
+    if not suppliers:
+        return [
+            {"id": 1, "company_name": "Tata Power Storage", "email": "tata@power.com", "phone": "+919999999991", "address": "Pune, Maharashtra"},
+            {"id": 2, "company_name": "Reliance Battery Solutions", "email": "reliance@battery.com", "phone": "+919999999992", "address": "Mumbai, Maharashtra"},
+            {"id": 3, "company_name": "Ola Cell Technologies", "email": "ola@cells.com", "phone": "+919999999993", "address": "Bangalore, Karnataka"},
+            {"id": 4, "company_name": "Amara Raja Batteries", "email": "amararaja@batteries.com", "phone": "+919999999994", "address": "Hyderabad, Telangana"},
+        ]
     return [
         {
-            "id": "lot-1",
-            "title": "Tier-1 Microgrid Bundle",
-            "price": "$145K",
-            "units": "50x UNITS",
-            "origin": "Tesla Model 3 Salvage",
-            "avg_soh": "88%",
-            "certification": "UL-1974 Ready",
-            "img_alt": "Battery warehouse storage",
-            "img_url": "https://lh3.googleusercontent.com/aida-public/AB6AXuBWdnmGAmCvhl7do2EmitTzstpjitP6pkCWA0L35smUpPwmINmm8tD8gSyGJo2GNcBMsggP8dFJ0OLaIvv88NkwEIVl9qAfn8zzuoQZPsEvQQuEcrUGUh2MDs9qS7MJJTuFoGA7DryntTsRmzgzGE403GfYXrxGrrGIZYkl5ww_yUOq4KcCAM4HGrIhaOiTvS-XETlk3dgFlAZL7n_iaBwp8yfWyO4FPvi3pWdTuuMAVmCHPmlEHBmq0_gdhAPDf8Uv4XKwSB0CpZc",
-        },
-        {
-            "id": "lot-2",
-            "title": "LFP Grid Stabilizer Lot",
-            "price": "$312K",
-            "units": "120x UNITS",
-            "origin": "BYD Transit Fleet",
-            "avg_soh": "82%",
-            "certification": "VoltLife Grade B+",
-            "img_alt": "Battery assembly line",
-            "img_url": "https://lh3.googleusercontent.com/aida-public/AB6AXuBhIuRCuoA1eKpAiSw_aAbGkpePTpKHKWc9rotHY96eRDrEkPqTMuP6LIRHiOXq6suKbo9pgRX11YTDaA84XZO1ZO2e4zBxkiGSwDxclrcjkcBALQongQNZQkXqIVLDnUXXE4uOX24v94QvryP0izJWZjXjJPy3tBUVOQtniXRjzNiwKv6f8XRJeIwPNpB2jQnoHqTCX3800lqjzCtv9ExyOTDjbzUWMIciPiqDga-zLYJ8s13OlMg0hHdxYAuj4W014z_--Dgs4kU",
-        },
-        {
-            "id": "lot-3",
-            "title": "NMC Performance Batch",
-            "price": "$198K",
-            "units": "75x UNITS",
-            "origin": "Rivian Service Center",
-            "avg_soh": "91%",
-            "certification": "OEM Validated",
-            "img_alt": "Commercial battery storage",
-            "img_url": "https://lh3.googleusercontent.com/aida-public/AB6AXuCiin-wfHHfLD42VVBkbFkbveLDmlX3PxIt3AkLNgim7u0Hl16Xj-1P3g9KO6E_NVTI9Fts2XFW50F_Rw9xOAP4wSXUo1uQBrI1ozJFwSoAh-Aoy6isMd1NC8hqvqJ6IEd5FjloIjrooixb1CibS2YGpweFfxRmCEFegjrQYi-J6nB4GUlv099MhgD2Fm0tSik-Azs6VQYuPb_M94evOD-mORgkQpKtoVcDSY7d5a3REJZiZizbi1piAH1y6_XwG-bV0_q8QzbMK-c",
-        },
+            "id": s.id,
+            "company_name": s.company_name,
+            "email": s.email,
+            "phone": s.phone,
+            "address": s.address,
+        }
+        for s in suppliers
     ]

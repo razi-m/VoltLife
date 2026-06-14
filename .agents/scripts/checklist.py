@@ -21,6 +21,15 @@ Priority Order:
 """
 
 import sys
+
+# Configure UTF-8 for Windows stdout/stderr
+if sys.platform.startswith('win'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except (AttributeError, IOError):
+        pass
+
 import subprocess
 import argparse
 from pathlib import Path

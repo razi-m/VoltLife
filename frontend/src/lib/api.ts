@@ -122,7 +122,105 @@ export const api = {
       return request<{ id: number; bpan: string; grade: string; chemistry: string; current_bid: number; time_remaining: string; rated_capacity_kwh: number }[]>(`/api/v1/marketplace/auctions${qs}`);
     },
     bid: (id: number) => request<{ status: string; message: string; new_bid: number }>(`/api/v1/marketplace/auctions/${id}/bid`, { method: 'POST' }),
-    lots: () => request<{ id: string; title: string; price: string; units: string; origin: string; avg_soh: string; certification: string; img_alt: string; img_url: string }[]>('/api/v1/marketplace/lots'),
+    lots: (params?: Record<string, string | number>) => {
+      const qs = params ? '?' + new URLSearchParams(
+        Object.entries(params).reduce((acc, [k, v]) => ({ ...acc, [k]: String(v) }), {} as Record<string, string>)
+      ).toString() : '';
+      return request<any[]>(`/api/v1/marketplace/lots${qs}`);
+    },
+    suppliers: () => request<any[]>('/api/v1/marketplace/suppliers'),
+  },
+
+  // ─── Suppliers ───────────────────────────────────
+  suppliers: {
+    dashboardStats: (token: string) =>
+      request<any>('/api/v1/suppliers/dashboard/stats', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+    dashboardInventory: (token: string) =>
+      request<any[]>('/api/v1/suppliers/dashboard/inventory', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+    dashboardOrders: (token: string) =>
+      request<any[]>('/api/v1/suppliers/dashboard/orders', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+    dashboardRequirements: (token: string) =>
+      request<any[]>('/api/v1/suppliers/dashboard/requirements', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+  },
+
+
+  // ─── Requirements ─────────────────────────────────
+  requirements: {
+    create: (useCaseText: string, token: string) =>
+      request<any>('/api/v1/requirements', {
+        method: 'POST',
+        body: { use_case_text: useCaseText },
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+    matches: (id: number, token: string) =>
+      request<any[]>(`/api/v1/requirements/${id}/matches`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+  },
+
+  // ─── Quotes ────────────────────────────────────────
+  quotes: {
+    list: (token: string) =>
+      request<any[]>('/api/v1/quotes', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+    create: (lotId: number, quantity: number, token: string) =>
+      request<any>('/api/v1/quotes', {
+        method: 'POST',
+        body: { inventory_lot_id: lotId, quantity },
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+  },
+
+  // ─── Payments ──────────────────────────────────────
+  payments: {
+    checkoutSession: (quoteId: number, token: string) =>
+      request<{ session_id: string; checkout_url: string }>('/api/v1/payments/checkout-session', {
+        method: 'POST',
+        body: { quote_id: quoteId },
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+    mockConfirm: (sessionId: string) =>
+      request<any>('/api/v1/payments/mock-confirm', {
+        method: 'POST',
+        body: { session_id: sessionId }
+      }),
+    orders: (token: string) =>
+      request<any[]>('/api/v1/payments/orders', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+  },
+
+  // ─── Logistics ─────────────────────────────────────
+  logistics: {
+    tracking: (orderId: number, token: string) =>
+      request<any>(`/api/v1/logistics/orders/${orderId}/tracking`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+    triggerCallback: (orderId: number, status: string) =>
+      request<{ status: string; order_id: number; new_state: string }>('/api/v1/logistics/callback', {
+        method: 'POST',
+        body: { order_id: orderId, status }
+      }),
+    confirmReceipt: (orderId: number, token: string) =>
+      request<{ status: string; order_id: number; new_state: string }>(`/api/v1/logistics/orders/${orderId}/confirm-receipt`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+    raiseIssue: (orderId: number, issueText: string, token: string) =>
+      request<{ status: string; ticket_id: number; order_id: number; issue_text: string }>(`/api/v1/logistics/orders/${orderId}/raise-issue`, {
+        method: 'POST',
+        body: { issue_text: issueText },
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
   },
 
   // ─── Demo ──────────────────────────────────────

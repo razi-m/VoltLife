@@ -47,11 +47,63 @@ def seed_sites(db: Session):
     db.commit()
     logger.info("Successfully seeded sites table.")
 
+def seed_marketplace_demo_users(db: Session):
+    """
+    Seeds the database with a default verified Supplier and a default Buyer
+    for role-based authentication testing.
+    """
+    from app.models.marketplace_orm import Supplier, SupplierUser, BuyerAccount
+    from app.core.auth import hash_password
+
+    # 1. Seed default buyer
+    existing_buyer = db.query(BuyerAccount).filter(BuyerAccount.username == "demo_buyer").first()
+    if not existing_buyer:
+        buyer = BuyerAccount(
+            company_name="Demo Buyer Inc",
+            email="buyer@demovolt.com",
+            phone="+918888888888",
+            address="Mumbai, Maharashtra",
+            username="demo_buyer",
+            password_hash=hash_password("password123")
+        )
+        db.add(buyer)
+        logger.info("Seeding default buyer account (demo_buyer)...")
+
+    # 2. Seed default supplier
+    existing_supplier_user = db.query(SupplierUser).filter(SupplierUser.username == "demo_supplier").first()
+    if not existing_supplier_user:
+        # Create supplier first
+        supplier = Supplier(
+            company_name="Demo Supplier Ltd",
+            email="supplier@demovolt.com",
+            phone="+919999999999",
+            gstin="27AAAAA0000A1Z5",
+            address="Pune, Maharashtra",
+            is_verified=True
+        )
+        db.add(supplier)
+        db.flush()
+        
+        # Create user
+        supplier_user = SupplierUser(
+            supplier_id=supplier.id,
+            username="demo_supplier",
+            password_hash=hash_password("password123"),
+            role="admin"
+        )
+        db.add(supplier_user)
+        logger.info("Seeding default supplier account (demo_supplier)...")
+        
+    db.commit()
+
+
 if __name__ == "__main__":
     # If run directly, initialize DB (SQLite fallback support) and run seeding
     init_db()
     db = SessionLocal()
     try:
         seed_sites(db)
+        seed_marketplace_demo_users(db)
     finally:
         db.close()
+

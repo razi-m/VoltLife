@@ -22,6 +22,7 @@ class Battery(Base):
     lat = Column(Numeric(9, 6), nullable=True)
     lng = Column(Numeric(9, 6), nullable=True)
     status = Column(String(20), default="ingested")  # ingested | assessed | assigned | deployed | recycled
+    supplier_id = Column(Integer, ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -120,3 +121,11 @@ class LifecycleEvent(Base):
     occurred_at = Column(DateTime(timezone=True), server_default=func.now())
 
     battery = relationship("Battery", back_populates="lifecycle_events")
+
+
+# Register Marketplace Subsystem Models on metadata
+from app.models.marketplace_orm import (
+    Supplier, SupplierUser, SupplierVerification, InventoryLot,
+    PricingTier, Listing, BuyerAccount, Requirement, Quote, Order,
+    ShipmentTrackingEvent, PaymentEvent, SaaS_Subscription, SupportTicket
+)

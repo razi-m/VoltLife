@@ -204,6 +204,6 @@ export interface JobStatus {
 }
 
 export interface WSEvent {
-  type: 'assessment' | 'deployment' | 'impact' | 'progress';
-  payload: Record<string, unknown>;
+  type: 'assessment' | 'deployment' | 'impact' | 'progress' | 'order_tracking_update';
+  payload: Record<string, any>;
 }

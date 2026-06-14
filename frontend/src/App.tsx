@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/layout/Sidebar';
 import { useWebSocket } from './hooks/useWebSocket';
 import './index.css';
@@ -14,6 +14,8 @@ const Analytics = lazy(() => import('./pages/Analytics'));
 const Impact = lazy(() => import('./pages/Impact'));
 const AI = lazy(() => import('./pages/AI'));
 const Marketplace = lazy(() => import('./pages/Marketplace'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const SellerDashboard = lazy(() => import('./pages/SellerDashboard'));
 
 const PageLoader = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
@@ -21,15 +23,39 @@ const PageLoader = () => (
   </div>
 );
 
+/** Role guard — blocks suppliers from buyer-only pages */
+const BuyerOnly: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const hasSupplierToken = !!localStorage.getItem('supplier_token');
+  if (hasSupplierToken) return <Navigate to="/seller-dashboard" replace />;
+  return children;
+};
+
+/** Role guard — blocks buyers/anon from seller-only pages */
+const SellerOnly: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const hasSupplierToken = !!localStorage.getItem('supplier_token');
+  if (!hasSupplierToken) return <Navigate to="/login" replace />;
+  return children;
+};
+
 const AppLayout: React.FC = () => {
   const location = useLocation();
   const isLanding = location.pathname === '/';
+  const isLogin = location.pathname === '/login';
   const { connected, lastEvent } = useWebSocket();
 
   if (isLanding) {
     return (
       <Suspense fallback={<PageLoader />}>
         <LandingPage />
+      </Suspense>
+    );
+  }
+
+  // Login page renders without sidebar chrome
+  if (isLogin) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <LoginPage />
       </Suspense>
     );
   }
@@ -47,7 +73,12 @@ const AppLayout: React.FC = () => {
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/impact" element={<Impact />} />
             <Route path="/ai" element={<AI />} />
-            <Route path="/marketplace" element={<Marketplace />} />
+            <Route path="/marketplace" element={
+              <BuyerOnly><Marketplace lastEvent={lastEvent} /></BuyerOnly>
+            } />
+            <Route path="/seller-dashboard" element={
+              <SellerOnly><SellerDashboard /></SellerOnly>
+            } />
           </Routes>
         </Suspense>
       </main>

@@ -73,6 +73,42 @@ def process_single_battery(db: Session, battery_id: int, serial_num: int) -> Tup
     )
     append_lifecycle_event(db, battery.id, "aadhaar_issued")
 
+    # 5.5 If battery belongs to a supplier, auto-generate draft InventoryLot
+    if battery.supplier_id is not None and assessment.grade != "D":
+        from app.models.marketplace_orm import InventoryLot
+        
+        # Check if a draft InventoryLot already exists for this (supplier_id, grade, chemistry)
+        lot = db.query(InventoryLot).filter(
+            InventoryLot.supplier_id == battery.supplier_id,
+            InventoryLot.grade == assessment.grade,
+            InventoryLot.chemistry == battery.chemistry,
+            InventoryLot.status == "draft"
+        ).first()
+        
+        if not lot:
+            lot = InventoryLot(
+                supplier_id=battery.supplier_id,
+                grade=assessment.grade,
+                chemistry=battery.chemistry,
+                total_capacity_kwh=battery.rated_capacity_kwh,
+                available_quantity=1,
+                avg_soh=assessment.soh_pct,
+                avg_rul_years=assessment.rul_years,
+                status="draft"
+            )
+            db.add(lot)
+            db.flush()
+        else:
+            old_qty = lot.available_quantity
+            new_qty = old_qty + 1
+            lot.total_capacity_kwh = float(lot.total_capacity_kwh) + float(battery.rated_capacity_kwh)
+            lot.avg_soh = (float(lot.avg_soh) * old_qty + float(assessment.soh_pct)) / new_qty
+            lot.avg_rul_years = (float(lot.avg_rul_years) * old_qty + float(assessment.rul_years)) / new_qty
+            lot.available_quantity = new_qty
+        
+        # Link battery to this lot
+        lot.batteries.append(battery)
+
     db.commit()
 
     # Construct WS assessment payload

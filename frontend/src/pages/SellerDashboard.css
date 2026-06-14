@@ -1,0 +1,466 @@
+/* ────────────────────────────────────────────────────────────
+   SellerDashboard.css  — Terminal Dark HUD for Seller Portal
+   Sharp 2px edges · Thin grid outlines · Zero purple · Zero glassmorphism
+   ──────────────────────────────────────────────────────────── */
+
+/* ── Page Header ────────────────────────────────────────── */
+.seller-dashboard__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.seller-dashboard__verified-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--secondary);
+  border: 1px solid var(--secondary);
+  border-radius: 2px;
+  background: rgba(78, 222, 163, 0.08);
+  vertical-align: middle;
+  margin-left: var(--space-2);
+}
+
+.seller-dashboard__logout-btn {
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: 1px solid var(--outline-variant);
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.seller-dashboard__logout-btn:hover {
+  border-color: var(--color-danger, hsl(0 72% 51%));
+  color: var(--color-danger, hsl(0 72% 51%));
+  background: rgba(239, 68, 68, 0.06);
+}
+
+/* ── Loading & Error States ────────────────────────────── */
+.seller-dashboard__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: var(--space-4);
+}
+
+.seller-dashboard__error {
+  max-width: 500px;
+  margin: var(--space-8) auto;
+  text-align: center;
+}
+
+.seller-dashboard__btn-primary {
+  padding: var(--space-2) var(--space-6);
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  border: 1px solid var(--primary);
+  border-radius: 2px;
+  font: var(--text-label-caps);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.seller-dashboard__btn-primary:hover {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+/* ── KPI Metric Card Glow Override ─────────────────────── */
+.metric-card--glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card--glow::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--secondary), transparent);
+  opacity: 0.6;
+}
+
+/* ── Tab Navigation ────────────────────────────────────── */
+.seller-dashboard__tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.seller-dashboard__tab-btn {
+  flex: 1;
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--on-surface-variant);
+  font: var(--text-body-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.seller-dashboard__tab-btn:hover {
+  color: var(--on-surface);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.seller-dashboard__tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* ── Panel Card ────────────────────────────────────────── */
+.seller-dashboard__panel {
+  border-radius: 2px;
+}
+
+.seller-dashboard__panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+/* ── Empty State ───────────────────────────────────────── */
+.seller-dashboard__empty {
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+}
+
+/* ── Table ─────────────────────────────────────────────── */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.seller-dashboard__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.seller-dashboard__table thead {
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.seller-dashboard__table th {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  color: var(--on-surface-variant);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.seller-dashboard__table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  vertical-align: middle;
+}
+
+.seller-dashboard__table tbody tr {
+  transition: background var(--transition-fast);
+}
+
+.seller-dashboard__table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ── Status Tags (Inventory) ──────────────────────────── */
+.seller-dashboard__status-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  border: 1px solid transparent;
+}
+
+.seller-dashboard__status-tag.status-draft {
+  color: var(--on-surface-variant);
+  border-color: var(--outline-variant);
+  background: transparent;
+}
+
+.seller-dashboard__status-tag.status-listed {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: rgba(77, 142, 255, 0.08);
+}
+
+.seller-dashboard__status-tag.status-sold_out {
+  color: var(--color-danger, hsl(0 72% 51%));
+  border-color: var(--color-danger, hsl(0 72% 51%));
+  background: rgba(239, 68, 68, 0.06);
+}
+
+/* ── Action Buttons (Inventory Row) ───────────────────── */
+.seller-dashboard__action-btn {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 2px;
+  border: 1px solid var(--secondary);
+  color: var(--secondary);
+  background: rgba(78, 222, 163, 0.08);
+  transition: all var(--transition-fast);
+}
+
+.seller-dashboard__action-btn:hover {
+  background: var(--secondary);
+  color: var(--surface);
+}
+
+.seller-dashboard__action-btn.btn-outline {
+  border-color: var(--outline-variant);
+  color: var(--on-surface-variant);
+  background: transparent;
+}
+
+.seller-dashboard__action-btn.btn-outline:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(77, 142, 255, 0.06);
+}
+
+/* ── Payment & Tracking Badges (Orders) ───────────────── */
+.seller-dashboard__payment-badge,
+.seller-dashboard__tracking-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  border: 1px solid transparent;
+}
+
+/* Payment states */
+.seller-dashboard__payment-badge.payment-pending {
+  color: var(--color-warning, hsl(45 93% 47%));
+  border-color: var(--color-warning, hsl(45 93% 47%));
+  background: rgba(234, 179, 8, 0.08);
+}
+
+.seller-dashboard__payment-badge.payment-paid,
+.seller-dashboard__payment-badge.payment-success {
+  color: var(--secondary);
+  border-color: var(--secondary);
+  background: rgba(78, 222, 163, 0.08);
+}
+
+.seller-dashboard__payment-badge.payment-failed {
+  color: var(--color-danger, hsl(0 72% 51%));
+  border-color: var(--color-danger, hsl(0 72% 51%));
+  background: rgba(239, 68, 68, 0.06);
+}
+
+/* Tracking states */
+.seller-dashboard__tracking-badge.tracking-pending,
+.seller-dashboard__tracking-badge.tracking-porter_booked {
+  color: var(--color-warning, hsl(45 93% 47%));
+  border-color: var(--color-warning, hsl(45 93% 47%));
+  background: rgba(234, 179, 8, 0.08);
+}
+
+.seller-dashboard__tracking-badge.tracking-in_transit {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: rgba(77, 142, 255, 0.08);
+}
+
+.seller-dashboard__tracking-badge.tracking-delivered,
+.seller-dashboard__tracking-badge.tracking-completed {
+  color: var(--secondary);
+  border-color: var(--secondary);
+  background: rgba(78, 222, 163, 0.08);
+}
+
+/* ── Requirements Feed (Market Demand) ────────────────── */
+.seller-dashboard__requirements-feed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.seller-dashboard__req-card {
+  padding: var(--space-4);
+  border: 1px solid var(--outline-variant);
+  border-radius: 2px;
+  background: var(--surface-container-lowest);
+  transition: border-color var(--transition-fast);
+}
+
+.seller-dashboard__req-card:hover {
+  border-color: var(--primary);
+}
+
+/* ── Publish / Configure Modal ────────────────────────── */
+.seller-dashboard__modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.seller-dashboard__modal {
+  width: 90%;
+  max-width: 480px;
+  padding: var(--space-6);
+  border-radius: 2px;
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-container);
+}
+
+.seller-dashboard__modal-close {
+  background: transparent;
+  border: none;
+  color: var(--on-surface-variant);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color var(--transition-fast);
+}
+
+.seller-dashboard__modal-close:hover {
+  color: var(--on-surface);
+}
+
+.seller-dashboard__modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.seller-dashboard__form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.seller-dashboard__form-input,
+.seller-dashboard__form-textarea {
+  background: var(--surface-container-lowest);
+  border: 1px solid var(--outline-variant);
+  color: var(--on-surface);
+  padding: var(--space-3);
+  font-family: var(--font-data);
+  font-size: 14px;
+  border-radius: 2px;
+  outline: none;
+  transition: border-color var(--transition-fast);
+  resize: vertical;
+}
+
+.seller-dashboard__form-input:focus,
+.seller-dashboard__form-textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px rgba(77, 142, 255, 0.2);
+}
+
+.seller-dashboard__modal-btn-sec {
+  padding: var(--space-2) var(--space-5);
+  background: transparent;
+  border: 1px solid var(--outline-variant);
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all var(--transition-fast);
+}
+
+.seller-dashboard__modal-btn-sec:hover {
+  border-color: var(--on-surface);
+  color: var(--on-surface);
+}
+
+.seller-dashboard__modal-btn-pri {
+  padding: var(--space-2) var(--space-5);
+  background: var(--secondary);
+  border: 1px solid var(--secondary);
+  color: var(--surface);
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all var(--transition-fast);
+}
+
+.seller-dashboard__modal-btn-pri:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 0 12px rgba(78, 222, 163, 0.3);
+}
+
+.seller-dashboard__modal-btn-pri:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Role Indicator (Sidebar) ─────────────────────────── */
+.sidebar__role-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+}
+
+.sidebar__role-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+}
+
+.sidebar__role-dot--buyer {
+  background: var(--primary);
+  box-shadow: 0 0 4px rgba(77, 142, 255, 0.5);
+}
+
+.sidebar__role-dot--seller {
+  background: var(--secondary);
+  box-shadow: 0 0 4px rgba(78, 222, 163, 0.5);
+}
+
+/* ── Responsive ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  .seller-dashboard__tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .seller-dashboard__tab-btn {
+    min-width: 140px;
+    font-size: 12px;
+  }
+
+  .seller-dashboard__header {
+    flex-direction: column;
+  }
+}
