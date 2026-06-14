@@ -218,7 +218,7 @@ const Marketplace: React.FC<MarketplaceProps> = ({ lastEvent }) => {
       
       // Simulating Stripe / Mock checkout confirm directly in sandbox
       showToast('Verifying payment and locking inventory...', 'info');
-      const order = await api.payments.mockConfirm(session.session_id);
+      const order = await api.payments.mockConfirm(session.session_id, buyerToken);
       showToast(`Payment confirmed! Order #${order.id} created.`, 'success');
       
       // Refresh quotes and orders

@@ -188,10 +188,11 @@ export const api = {
         body: { quote_id: quoteId },
         headers: { 'Authorization': `Bearer ${token}` }
       }),
-    mockConfirm: (sessionId: string) =>
+    mockConfirm: (sessionId: string, token: string) =>
       request<any>('/api/v1/payments/mock-confirm', {
         method: 'POST',
-        body: { session_id: sessionId }
+        body: { session_id: sessionId },
+        headers: { 'Authorization': `Bearer ${token}` }
       }),
     orders: (token: string) =>
       request<any[]>('/api/v1/payments/orders', {
