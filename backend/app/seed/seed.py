@@ -71,6 +71,9 @@ def seed_marketplace_demo_users(db: Session):
 
     # 2. Seed default supplier
     existing_supplier_user = db.query(SupplierUser).filter(SupplierUser.username == "demo_supplier").first()
+    from app.models.marketplace_orm import SaaS_Subscription
+    from datetime import datetime, timedelta, timezone
+
     if not existing_supplier_user:
         # Create supplier first
         supplier = Supplier(
@@ -94,7 +97,32 @@ def seed_marketplace_demo_users(db: Session):
         db.add(supplier_user)
         logger.info("Seeding default supplier account (demo_supplier)...")
         
+        # Create subscription
+        subscription = SaaS_Subscription(
+            supplier_id=supplier.id,
+            plan_name="Annual",
+            status="active",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=365)
+        )
+        db.add(subscription)
+        logger.info("Seeding default subscription for demo_supplier...")
+    else:
+        # Check if subscription exists for the existing supplier
+        existing_sub = db.query(SaaS_Subscription).filter(
+            SaaS_Subscription.supplier_id == existing_supplier_user.supplier_id
+        ).first()
+        if not existing_sub:
+            subscription = SaaS_Subscription(
+                supplier_id=existing_supplier_user.supplier_id,
+                plan_name="Annual",
+                status="active",
+                expires_at=datetime.now(timezone.utc) + timedelta(days=365)
+            )
+            db.add(subscription)
+            logger.info("Seeding missing default subscription for demo_supplier...")
+        
     db.commit()
+
 
 
 if __name__ == "__main__":

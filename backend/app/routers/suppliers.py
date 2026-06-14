@@ -77,6 +77,43 @@ def get_current_verified_supplier(supplier: Supplier = Depends(get_current_suppl
         )
     return supplier
 
+def get_current_active_subscriber(
+    supplier: Supplier = Depends(get_current_verified_supplier),
+    db: Session = Depends(get_db)
+) -> Supplier:
+    from app.models.marketplace_orm import SaaS_Subscription
+    from datetime import datetime, timezone
+    
+    # 1. Fetch active subscription
+    sub = db.query(SaaS_Subscription).filter(
+        SaaS_Subscription.supplier_id == supplier.id,
+        SaaS_Subscription.status == "active"
+    ).first()
+    
+    if not sub:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "subscription_required", "message": "An active SaaS subscription is required to perform this action"}}
+        )
+        
+    # 2. Check expiry if set
+    if sub.expires_at:
+        now = datetime.now(timezone.utc)
+        expires_at = sub.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if now > expires_at:
+            # Mark it as expired
+            sub.status = "expired"
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": {"code": "subscription_required", "message": "SaaS subscription has expired"}}
+            )
+            
+    return supplier
+
+
 # --- Routes ---
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register_supplier(data: SupplierRegister, db: Session = Depends(get_db)):
@@ -198,6 +235,26 @@ def verify_supplier(supplier_id: int, approved: bool, notes: Optional[str] = "Ad
         status=status_str
     )
     db.add(verification)
+
+    if approved:
+        from app.models.marketplace_orm import SaaS_Subscription
+        from datetime import datetime, timedelta, timezone
+        
+        # Check if supplier has an active subscription
+        existing_sub = db.query(SaaS_Subscription).filter(
+            SaaS_Subscription.supplier_id == supplier.id,
+            SaaS_Subscription.status == "active"
+        ).first()
+        
+        if not existing_sub:
+            new_sub = SaaS_Subscription(
+                supplier_id=supplier.id,
+                plan_name="Annual",
+                status="active",
+                expires_at=datetime.now(timezone.utc) + timedelta(days=365)
+            )
+            db.add(new_sub)
+            
     db.commit()
     
     return {
@@ -210,7 +267,7 @@ def verify_supplier(supplier_id: int, approved: bool, notes: Optional[str] = "Ad
 async def upload_supplier_inventory(
     request: Request,
     background_tasks: BackgroundTasks,
-    supplier: Supplier = Depends(get_current_verified_supplier),
+    supplier: Supplier = Depends(get_current_active_subscriber),
     db: Session = Depends(get_db)
 ):
     """
@@ -315,7 +372,7 @@ async def upload_supplier_inventory(
 def configure_listing(
     lot_id: int,
     data: ListingUpdate,
-    supplier: Supplier = Depends(get_current_verified_supplier),
+    supplier: Supplier = Depends(get_current_active_subscriber),
     db: Session = Depends(get_db)
 ):
     lot = db.query(InventoryLot).filter(InventoryLot.id == lot_id).first()
@@ -370,7 +427,7 @@ def configure_listing(
 def configure_pricing_tiers(
     lot_id: int,
     data: PricingTiersUpdate,
-    supplier: Supplier = Depends(get_current_verified_supplier),
+    supplier: Supplier = Depends(get_current_active_subscriber),
     db: Session = Depends(get_db)
 ):
     lot = db.query(InventoryLot).filter(InventoryLot.id == lot_id).first()
@@ -437,7 +494,7 @@ def configure_pricing_tiers(
 def publish_listing(
     lot_id: int,
     publish: bool = True,
-    supplier: Supplier = Depends(get_current_verified_supplier),
+    supplier: Supplier = Depends(get_current_active_subscriber),
     db: Session = Depends(get_db)
 ):
     lot = db.query(InventoryLot).filter(InventoryLot.id == lot_id).first()
@@ -494,7 +551,7 @@ def publish_listing(
 @router.get("/inventory/lots/{lot_id}/listing")
 def get_listing_configuration(
     lot_id: int,
-    supplier: Supplier = Depends(get_current_verified_supplier),
+    supplier: Supplier = Depends(get_current_active_subscriber),
     db: Session = Depends(get_db)
 ):
     lot = db.query(InventoryLot).filter(InventoryLot.id == lot_id).first()
@@ -539,7 +596,7 @@ def get_listing_configuration(
 
 @router.get("/dashboard/stats")
 def get_dashboard_stats(
-    supplier: Supplier = Depends(get_current_verified_supplier),
+    supplier: Supplier = Depends(get_current_active_subscriber),
     db: Session = Depends(get_db)
 ):
     """
@@ -593,7 +650,7 @@ def get_dashboard_stats(
 
 @router.get("/dashboard/inventory")
 def get_dashboard_inventory(
-    supplier: Supplier = Depends(get_current_verified_supplier),
+    supplier: Supplier = Depends(get_current_active_subscriber),
     db: Session = Depends(get_db)
 ):
     """
@@ -644,7 +701,7 @@ def get_dashboard_inventory(
 
 @router.get("/dashboard/orders")
 def get_dashboard_orders(
-    supplier: Supplier = Depends(get_current_verified_supplier),
+    supplier: Supplier = Depends(get_current_active_subscriber),
     db: Session = Depends(get_db)
 ):
     """
@@ -685,7 +742,7 @@ def get_dashboard_orders(
 
 @router.get("/dashboard/requirements")
 def get_dashboard_requirements(
-    supplier: Supplier = Depends(get_current_verified_supplier),
+    supplier: Supplier = Depends(get_current_active_subscriber),
     db: Session = Depends(get_db)
 ):
     """

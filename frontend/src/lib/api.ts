@@ -223,6 +223,33 @@ export const api = {
       }),
   },
 
+  // ─── Subscriptions ──────────────────────────────
+  subscriptions: {
+    plans: () =>
+      request<any[]>('/api/v1/subscriptions/plans'),
+    status: (token: string) =>
+      request<{ status: string; plan_name: string | null; expires_at: string | null }>('/api/v1/subscriptions/status', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+    createSession: (planName: string, token: string) =>
+      request<{ session_id: string; checkout_url: string | null; amount_paise: number; key_id: string; is_mock: boolean }>('/api/v1/subscriptions/create-session', {
+        method: 'POST',
+        body: { plan_name: planName },
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+    verify: (payload: { plan_name: string; session_id: string; razorpay_order_id?: string; razorpay_payment_id?: string; razorpay_signature?: string }, token: string) =>
+      request<{ status: string; subscription: any }>('/api/v1/subscriptions/verify', {
+        method: 'POST',
+        body: payload,
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+    cancel: (token: string) =>
+      request<{ status: string; subscription: any }>('/api/v1/subscriptions/cancel', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+  },
+
   // ─── Demo ──────────────────────────────────────
   demo: {
     reset: (demoKey: string) =>

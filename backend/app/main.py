@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.core.logging import setup_logging, logger
 from app.core.events import manager as ws_manager
 from app.db.database import init_db, SessionLocal
-from app.routers import batteries, jobs, sites, impact, demo, healthz, dashboard, deployments, analytics, ai, marketplace, suppliers, buyers, requirements, quotes, payments, logistics
+from app.routers import batteries, jobs, sites, impact, demo, healthz, dashboard, deployments, analytics, ai, marketplace, suppliers, buyers, requirements, quotes, payments, logistics, subscriptions
 
 # Initialize Logging
 setup_logging()
@@ -102,6 +102,8 @@ app.include_router(requirements.router)
 app.include_router(quotes.router)
 app.include_router(payments.router)
 app.include_router(logistics.router)
+app.include_router(subscriptions.router)
+
 
 
 

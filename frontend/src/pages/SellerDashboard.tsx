@@ -76,6 +76,14 @@ const SellerDashboard: React.FC = () => {
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [requirements, setRequirements] = useState<RequirementItem[]>([]);
 
+  // Subscription States
+  const [subStatus, setSubStatus] = useState<{ status: string; plan_name: string | null; expires_at: string | null } | null>(null);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [activeSubscribingPlan, setActiveSubscribingPlan] = useState<string | null>(null);
+  const [paymentSession, setPaymentSession] = useState<{ session_id: string; amount_paise: number; key_id: string; is_mock: boolean } | null>(null);
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
   // Loading / Error states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,19 +109,39 @@ const SellerDashboard: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [statsRes, invRes, ordRes, reqsRes] = await Promise.all([
-        api.suppliers.dashboardStats(token),
-        api.suppliers.dashboardInventory(token),
-        api.suppliers.dashboardOrders(token),
-        api.suppliers.dashboardRequirements(token),
-      ]);
-      setStats(statsRes);
-      setInventory(invRes);
-      setOrders(ordRes);
-      setRequirements(reqsRes);
+      // 1. Fetch Subscription Status First
+      const subRes = await api.subscriptions.status(token);
+      setSubStatus(subRes);
+      
+      if (subRes.status === 'active') {
+        const [statsRes, invRes, ordRes, reqsRes] = await Promise.all([
+          api.suppliers.dashboardStats(token),
+          api.suppliers.dashboardInventory(token),
+          api.suppliers.dashboardOrders(token),
+          api.suppliers.dashboardRequirements(token),
+        ]);
+        setStats(statsRes);
+        setInventory(invRes);
+        setOrders(ordRes);
+        setRequirements(reqsRes);
+      } else {
+        // Fetch plans to display
+        const plansRes = await api.subscriptions.plans();
+        setPlans(plansRes);
+      }
     } catch (err: any) {
       console.error('Failed to load supplier dashboard data:', err);
-      setError(err.message || 'Error loading dashboard. Verify authorization.');
+      if (err.status === 403 && err.code === 'subscription_required') {
+        setSubStatus({ status: 'inactive', plan_name: null, expires_at: null });
+        try {
+          const plansRes = await api.subscriptions.plans();
+          setPlans(plansRes);
+        } catch (planErr) {
+          console.error('Failed to load plans:', planErr);
+        }
+      } else {
+        setError(err.message || 'Error loading dashboard. Verify authorization.');
+      }
     } finally {
       setLoading(false);
     }
@@ -122,6 +150,134 @@ const SellerDashboard: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [token]);
+
+  // Razorpay Dynamic SDK Trigger
+  const triggerRealRazorpay = (planName: string, session: { session_id: string; amount_paise: number; key_id: string }) => {
+    return new Promise<void>((resolve, reject) => {
+      const scriptId = 'razorpay-checkout-script';
+      let script = document.getElementById(scriptId) as HTMLScriptElement;
+      
+      const openCheckout = () => {
+        const options = {
+          key: session.key_id,
+          amount: session.amount_paise,
+          currency: 'INR',
+          name: 'VoltLife Battery SaaS',
+          description: `${planName} Subscription Plan`,
+          order_id: session.session_id,
+          handler: async (response: any) => {
+            try {
+              setLoading(true);
+              await api.subscriptions.verify({
+                plan_name: planName,
+                session_id: session.session_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              }, token!);
+              setPaymentSession(null);
+              setActiveSubscribingPlan(null);
+              fetchData();
+              resolve();
+            } catch (verifyErr: any) {
+              setPaymentError(verifyErr.message || 'Signature verification failed.');
+              reject(verifyErr);
+            } finally {
+              setLoading(false);
+            }
+          },
+          prefill: {
+            name: companyName || 'VoltLife Seller',
+            email: 'supplier@demovolt.com'
+          },
+          theme: {
+            color: '#2563eb'
+          },
+          modal: {
+            ondismiss: () => {
+              setPaymentSession(null);
+              setActiveSubscribingPlan(null);
+              reject(new Error('Checkout cancelled by user.'));
+            }
+          }
+        };
+        const rzp = new (window as any).Razorpay(options);
+        rzp.open();
+      };
+
+      if (!script) {
+        script = document.createElement('script');
+        script.id = scriptId;
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => {
+          openCheckout();
+        };
+        script.onerror = () => {
+          reject(new Error('Failed to load Razorpay SDK.'));
+        };
+        document.body.appendChild(script);
+      } else {
+        openCheckout();
+      }
+    });
+  };
+
+  const handleSubscribeInit = async (planName: string) => {
+    if (!token) return;
+    setActiveSubscribingPlan(planName);
+    setPaymentSubmitting(true);
+    setPaymentError(null);
+    try {
+      const session = await api.subscriptions.createSession(planName, token);
+      setPaymentSession(session);
+      
+      // If it's a real Razorpay session, trigger it (already starts in background)
+      if (!session.is_mock) {
+        await triggerRealRazorpay(planName, session);
+      }
+    } catch (err: any) {
+      console.error('Failed to initiate subscription:', err);
+      setPaymentError(err.message || 'Failed to initiate payment session. Please try again.');
+      setActiveSubscribingPlan(null);
+    } finally {
+      setPaymentSubmitting(false);
+    }
+  };
+
+  const handleConfirmMockSubscription = async () => {
+    if (!token || !paymentSession || !activeSubscribingPlan) return;
+    setLoading(true);
+    setPaymentError(null);
+    try {
+      await api.subscriptions.verify({
+        plan_name: activeSubscribingPlan,
+        session_id: paymentSession.session_id
+      }, token);
+      setPaymentSession(null);
+      setActiveSubscribingPlan(null);
+      fetchData();
+    } catch (err: any) {
+      console.error('Failed to confirm mock subscription:', err);
+      setPaymentError(err.message || 'Failed to verify subscription. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!token) return;
+    if (!window.confirm("WARNING: Are you sure you want to force-expire the SaaS subscription for testing? This will lock the dashboard.")) return;
+    setLoading(true);
+    try {
+      await api.subscriptions.cancel(token);
+      fetchData();
+    } catch (err: any) {
+      console.error('Failed to cancel subscription:', err);
+      alert(err.message || 'Failed to cancel subscription.');
+      setLoading(false);
+    }
+  };
+
 
   const handleLogout = () => {
     localStorage.removeItem('supplier_token');
@@ -204,17 +360,32 @@ const SellerDashboard: React.FC = () => {
           <div className="flex items-center gap-3">
             <h1 className="page-title">{companyName || 'Supplier Portal'}</h1>
             <span className="seller-dashboard__verified-badge">VoltLife Verified Seller</span>
+            {subStatus?.status === 'active' && (
+              <span className="seller-dashboard__sub-badge">
+                Active: {subStatus.plan_name} Plan (Expires: {subStatus.expires_at ? new Date(subStatus.expires_at).toLocaleDateString() : 'N/A'})
+              </span>
+            )}
           </div>
           <p className="text-body-sm text-on-surface-variant style-caps" style={{ marginTop: 4 }}>
             SUPPLIER CONSOLE • REAL-TIME ASSET &amp; INVENTORY DISTRIBUTION
           </p>
         </div>
-        <button onClick={handleLogout} className="seller-dashboard__logout-btn text-label-caps">
-          🚪 Logout
-        </button>
+        <div className="flex items-center gap-4">
+          {subStatus?.status === 'active' && (
+            <button 
+              onClick={handleCancelSubscription} 
+              className="seller-dashboard__cancel-sub-btn text-label-caps"
+            >
+              ⚠️ Force Expire Sub
+            </button>
+          )}
+          <button onClick={handleLogout} className="seller-dashboard__logout-btn text-label-caps">
+            🚪 Logout
+          </button>
+        </div>
       </div>
 
-      {loading && !stats ? (
+      {loading && !stats && !subStatus ? (
         <div className="seller-dashboard__loading">
           <div className="assess__spinner-ring" style={{ width: 48, height: 48 }} />
           <p className="text-body-sm text-on-surface-variant mt-4">Retrieving ledger details...</p>
@@ -224,6 +395,92 @@ const SellerDashboard: React.FC = () => {
           <h3 className="text-headline-sm text-red-400 mb-2">Sync Connection Error</h3>
           <p className="text-body-sm text-on-surface-variant mb-4">{error}</p>
           <button onClick={fetchData} className="seller-dashboard__btn-primary">Retry Sync</button>
+        </div>
+      ) : subStatus?.status !== 'active' ? (
+        <div className="seller-dashboard__sub-required animate-fadeIn">
+          <div className="seller-dashboard__sub-locked-banner card p-6 mb-8 text-center">
+            <h2 className="text-headline-sm text-primary mb-2">⚡ Workspace Locked: SaaS Subscription Required</h2>
+            <p className="text-body-sm text-on-surface-variant max-w-2xl mx-auto">
+              SaaS subscription gates access to the seller workspace (dashboard metrics, battery uploads, listings publishing, and market demand feed). VoltLife takes <strong>zero commissions</strong> or transaction cuts on battery sales.
+            </p>
+            {subStatus?.status === 'expired' && (
+              <div className="seller-dashboard__expired-banner mt-3">
+                ⚠️ Your previous subscription has expired. Please renew to restore access.
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {plans.map((plan) => (
+              <div key={plan.name} className={`pricing-card card p-6 flex flex-col justify-between ${plan.name.toLowerCase() === 'annual' ? 'pricing-card--featured' : ''}`}>
+                <div>
+                  <div className="pricing-card__header mb-4">
+                    <h3 className="text-headline-sm text-primary">{plan.name} Plan</h3>
+                    <div className="pricing-card__price mt-2">
+                      <span className="text-headline-lg font-bold text-secondary">₹{plan.price_rupees.toLocaleString()}</span>
+                      <span className="text-xs text-on-surface-variant"> / {plan.name === 'Annual' ? 'year' : plan.name === 'Enterprise' ? 'year' : 'month'}</span>
+                    </div>
+                  </div>
+                  <p className="text-body-xs text-on-surface-variant mb-6">{plan.description}</p>
+                  <ul className="pricing-card__features space-y-2 mb-6">
+                    <li className="text-body-sm text-on-surface flex items-center gap-2">✓ Telemetry uploads &amp; AI auto-grading</li>
+                    <li className="text-body-sm text-on-surface flex items-center gap-2">✓ Dynamic quantity pricing tiers</li>
+                    <li className="text-body-sm text-on-surface flex items-center gap-2">✓ Match with active buyer requirements</li>
+                    <li className="text-body-sm text-on-surface flex items-center gap-2">✓ Zero marketplace transaction commissions</li>
+                    {plan.name === 'Enterprise' && (
+                      <li className="text-body-sm text-secondary font-bold flex items-center gap-2">✓ Dedicated offline account manager</li>
+                    )}
+                  </ul>
+                </div>
+                
+                <button
+                  onClick={() => handleSubscribeInit(plan.name)}
+                  disabled={activeSubscribingPlan !== null}
+                  className="seller-dashboard__subscribe-btn text-label-caps"
+                >
+                  {activeSubscribingPlan === plan.name ? 'Processing...' : `Subscribe ${plan.name}`}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Developer Mock Control for checkout */}
+          {paymentSession?.is_mock && (
+            <div className="seller-dashboard__mock-overlay animate-fadeIn">
+              <div className="seller-dashboard__mock-modal card p-6 text-center max-w-md mx-auto">
+                <h3 className="text-headline-sm text-primary mb-2">💳 Simulated Payment</h3>
+                <p className="text-body-sm text-on-surface-variant mb-4">
+                  Demo Mode is active. Complete subscription purchase using simulation.
+                </p>
+                <div className="seller-dashboard__mock-details p-3 text-left font-mono text-xs mb-4">
+                  <div>PLAN: {activeSubscribingPlan}</div>
+                  <div>AMOUNT: ₹{(paymentSession.amount_paise / 100).toLocaleString()}</div>
+                  <div className="seller-dashboard__mock-session">SESSION: {paymentSession.session_id}</div>
+                </div>
+                {paymentError && (
+                  <p className="text-red-400 text-xs mb-3">{paymentError}</p>
+                )}
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => { setPaymentSession(null); setActiveSubscribingPlan(null); }}
+                    className="seller-dashboard__mock-btn-sec text-label-caps"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmMockSubscription}
+                    className="seller-dashboard__mock-btn-pri text-label-caps"
+                  >
+                    Confirm Demo Purchase
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {paymentError && !paymentSession && (
+            <p className="text-red-400 text-center mt-4">{paymentError}</p>
+          )}
         </div>
       ) : (
         <div className="animate-fadeIn">

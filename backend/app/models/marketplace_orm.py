@@ -218,8 +218,10 @@ class SaaS_Subscription(Base):
     plan_name = Column(String(30), nullable=False)  # Monthly | Annual | Enterprise
     status = Column(String(20), nullable=False)  # active | cancelled | expired
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=True)
 
     supplier = relationship("Supplier", back_populates="subscriptions")
+
 
 
 class SupportTicket(Base):
