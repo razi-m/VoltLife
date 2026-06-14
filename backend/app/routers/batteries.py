@@ -185,6 +185,13 @@ def list_batteries(
         ass = db.query(Assessment).filter(Assessment.battery_id == b.id).order_by(Assessment.created_at.desc()).first()
         # Load deployment site
         dep = db.query(Deployment).filter(Deployment.battery_id == b.id).order_by(Deployment.created_at.desc()).first()
+        site_name = None
+        if dep and dep.site:
+            site_name = dep.site.name
+            if dep.reasoning_json and len(dep.reasoning_json) > 0:
+                first_rec = dep.reasoning_json[0]
+                if isinstance(first_rec, dict) and "override_name" in first_rec:
+                    site_name = first_rec["override_name"]
         
         items.append({
             "id": b.id,
@@ -198,7 +205,7 @@ def list_batteries(
             "rul_years": float(ass.rul_years) if ass else None,
             "grade": ass.grade if ass else None,
             "confidence": ass.confidence if ass else None,
-            "site_name": dep.site.name if dep and dep.site else None
+            "site_name": site_name
         })
 
     return {
@@ -253,10 +260,20 @@ def get_battery(battery_id: int, db: Session = Depends(get_db)):
     deployment_dict = None
     if dep:
         site = dep.site
+        site_name = site.name
+        site_type = site.site_type
+        if dep.reasoning_json and len(dep.reasoning_json) > 0:
+            first_rec = dep.reasoning_json[0]
+            if isinstance(first_rec, dict):
+                if "override_name" in first_rec:
+                    site_name = first_rec["override_name"]
+                if "override_type" in first_rec:
+                    site_type = first_rec["override_type"]
+                    
         deployment_dict = {
             "site_id": site.id,
-            "site_name": site.name,
-            "site_type": site.site_type,
+            "site_name": site_name,
+            "site_type": site_type,
             "score": float(dep.score),
             "distance_km": float(dep.distance_km) if dep.distance_km is not None else None,
             "reasons": dep.reasoning_json[0]["factors"] if dep.reasoning_json else [],

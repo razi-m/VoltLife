@@ -61,9 +61,10 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 connect_args = {
-    "sslmode": "require",
     "connect_timeout": 10
 }
+if "localhost" not in TEST_DATABASE_URL and "127.0.0.1" not in TEST_DATABASE_URL:
+    connect_args["sslmode"] = "require"
 engine = create_engine(
     TEST_DATABASE_URL,
     poolclass=NullPool,

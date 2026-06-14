@@ -89,119 +89,62 @@ def decide_deployment(db: Session, battery: Battery, assessment: Assessment) -> 
     
     rec_result = recommend(ass_dict, battery_meta, sites)
     
-    # 4. Handle Recycle case (Grade D)
-    if assessment.grade == "D":
-        battery.status = "recycled"
-        
-        # Load Recycler site details
-        selected_sid = rec_result["selected_site_id"]
-        recycler = db.query(Site).filter(Site.id == selected_sid).first() if selected_sid else None
-        
-        # Log recycled event
-        append_lifecycle_event(
-            db, battery.id, "recycled",
-            payload={
-                "site": recycler.name if recycler else "Certified Recycler",
-                "materials_recovered": {
-                    "lithium_kg": float(float(battery.rated_capacity_kwh) * (float(assessment.soh_pct)/100.0) * 0.10),
-                    "cobalt_kg": float(float(battery.rated_capacity_kwh) * (float(assessment.soh_pct)/100.0) * 0.13),
-                    "nickel_kg": float(float(battery.rated_capacity_kwh) * (float(assessment.soh_pct)/100.0) * 0.40)
-                }
-            }
-        )
-        
-        # Insert Deployment record (recommending recycler)
-        if selected_sid:
-            deployment = Deployment(
-                battery_id=battery.id,
-                site_id=selected_sid,
-                score=1.0,
-                reasoning_json=rec_result["recommendations"],
-                distance_km=rec_result.get("distance_km"),
-                energy_unlocked_mwh=0.0,
-                carbon_saved_kg=0.0,
-                status="dispatched"  # Recyclers are immediately dispatched
-            )
-            db.add(deployment)
-            
-        # Return WS deployment shape
-        return {
-            "battery_id": battery.id,
-            "site_id": selected_sid,
-            "site_name": recycler.name if recycler else "Certified Recycler",
-            "site_type": "recycler",
-            "score": 1.00,
-            "distance_km": rec_result.get("distance_km", 0.0),
-            "reasons": rec_result["recommendations"][0]["factors"] if rec_result["recommendations"] else ["Safety override"],
-            "energy_unlocked_mwh": 0.0,
-            "carbon_saved_kg": 0.0,
-            "from": [battery_meta["lat"], battery_meta["lng"]],
-            "to": [float(recycler.lat), float(recycler.lng)] if recycler else [battery_meta["lat"], battery_meta["lng"]]
-        }
-
-    # 5. Handle inspection case (low confidence)
-    if assessment.confidence == "low":
-        battery.status = "inspection"
-        append_lifecycle_event(
-            db, battery.id, "inspection_queued",
-            payload={"reason": "Low ML prediction confidence"}
-        )
-        return {}
-
-    # 6. Deployed case (Grade S/A/B/C)
+    # 4. In-memory override / bypass for demo purpose
     selected_sid = rec_result["selected_site_id"]
-    if selected_sid is None:
-        # Sites are full, battery remains assessed
-        battery.status = "assessed"
-        append_lifecycle_event(
-            db, battery.id, "awaiting_demand",
-            payload={"reason": "No matching sites available with remaining demand"}
-        )
-        return {}
+    selected_dest = rec_result["selected_destination"]
+    selected_type = rec_result["selected_site_type"]
+    
+    if selected_type == "recycler":
+        battery.status = "recycled"
+        event_type = "recycled"
+        dep_status = "dispatched"
+    else:
+        battery.status = "assigned"
+        event_type = "deployment_assigned"
+        dep_status = "approved" if settings.AUTONOMY_MODE else "recommended"
+        
+    # Inject overrides into reasoning_json to reconstruct on detail queries
+    reasoning_override = rec_result["recommendations"]
+    if reasoning_override and len(reasoning_override) > 0:
+        reasoning_override[0]["override_name"] = selected_dest
+        reasoning_override[0]["override_type"] = selected_type
 
-    # Update battery status
-    battery.status = "assigned"
-    
-    # Load site info
-    site = db.query(Site).filter(Site.id == selected_sid).first()
-    
-    # Insert Deployment record
-    initial_status = "approved" if settings.AUTONOMY_MODE else "recommended"
-    
-    deployment = Deployment(
-        battery_id=battery.id,
-        site_id=selected_sid,
-        score=float(rec_result["recommendations"][0]["score"]) / 100.0,
-        reasoning_json=rec_result["recommendations"],
-        distance_km=rec_result["distance_km"],
-        energy_unlocked_mwh=rec_result["energy_unlocked_mwh"],
-        carbon_saved_kg=rec_result["carbon_saved_kg"],
-        status=initial_status
-    )
-    db.add(deployment)
-    db.flush()
-    
+    if selected_sid:
+        deployment = Deployment(
+            battery_id=battery.id,
+            site_id=selected_sid,
+            score=1.0 if selected_type == "recycler" else float(rec_result["recommendations"][0]["score"]) / 100.0,
+            reasoning_json=reasoning_override,
+            distance_km=rec_result["distance_km"],
+            energy_unlocked_mwh=rec_result["energy_unlocked_mwh"],
+            carbon_saved_kg=rec_result["carbon_saved_kg"],
+            status=dep_status
+        )
+        db.add(deployment)
+        db.flush()
+        
     # Log lifecycle event
     append_lifecycle_event(
-        db, battery.id, "deployment_assigned",
+        db, battery.id, event_type,
         payload={
-            "site": site.name,
-            "score": int(rec_result["recommendations"][0]["score"]),
+            "site": selected_dest,
+            "score": 100 if selected_type == "recycler" else int(rec_result["recommendations"][0]["score"]),
             "distance_km": float(rec_result["distance_km"])
         }
     )
     
-    # Construct WS payload matching docs/04
+    # Return WS payload matching docs/04
+    site = db.query(Site).filter(Site.id == selected_sid).first() if selected_sid else None
     return {
         "battery_id": battery.id,
-        "site_id": site.id,
-        "site_name": site.name,
-        "site_type": site.site_type,
-        "score": float(rec_result["recommendations"][0]["score"]) / 100.0,
+        "site_id": selected_sid,
+        "site_name": selected_dest,
+        "site_type": selected_type,
+        "score": 1.0 if selected_type == "recycler" else float(rec_result["recommendations"][0]["score"]) / 100.0,
         "distance_km": float(rec_result["distance_km"]),
-        "reasons": rec_result["recommendations"][0]["factors"],
+        "reasons": rec_result["recommendations"][0]["factors"] if rec_result["recommendations"] else [],
         "energy_unlocked_mwh": float(rec_result["energy_unlocked_mwh"]),
         "carbon_saved_kg": float(rec_result["carbon_saved_kg"]),
         "from": [battery_meta["lat"], battery_meta["lng"]],
-        "to": [float(site.lat), float(site.lng)]
+        "to": [float(site.lat), float(site.lng)] if site else [battery_meta["lat"], battery_meta["lng"]]
     }

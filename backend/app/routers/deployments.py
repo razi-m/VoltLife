@@ -54,6 +54,17 @@ def list_deployments(
     for dep in deployments:
         battery = dep.battery
         site = dep.site
+        
+        site_name = site.name
+        site_type = site.site_type
+        if dep.reasoning_json and len(dep.reasoning_json) > 0:
+            first_rec = dep.reasoning_json[0]
+            if isinstance(first_rec, dict):
+                if "override_name" in first_rec:
+                    site_name = first_rec["override_name"]
+                if "override_type" in first_rec:
+                    site_type = first_rec["override_type"]
+                    
         ass = db.query(Assessment).filter(
             Assessment.battery_id == battery.id
         ).order_by(Assessment.created_at.desc()).first()
@@ -70,8 +81,8 @@ def list_deployments(
             "soh_pct": float(ass.soh_pct) if ass else None,
             "confidence": ass.confidence if ass else None,
             "site_id": site.id,
-            "site_name": site.name,
-            "site_type": site.site_type,
+            "site_name": site_name,
+            "site_type": site_type,
             "site_state": site.state,
             "score": float(dep.score),
             "distance_km": float(dep.distance_km) if dep.distance_km else None,
@@ -108,16 +119,23 @@ def approve_deployment(deployment_id: int, db: Session = Depends(get_db)):
         )
 
     dep.status = "approved"
+    
+    site_name = dep.site.name if dep.site else "Site"
+    if dep.reasoning_json and len(dep.reasoning_json) > 0:
+        first_rec = dep.reasoning_json[0]
+        if isinstance(first_rec, dict) and "override_name" in first_rec:
+            site_name = first_rec["override_name"]
+            
     append_lifecycle_event(
         db, dep.battery_id, "deployment_approved",
-        payload={"deployment_id": dep.id, "site_name": dep.site.name}
+        payload={"deployment_id": dep.id, "site_name": site_name}
     )
     db.commit()
 
-    logger.info(f"Deployment {deployment_id} approved for battery {dep.battery_id} → {dep.site.name}")
+    logger.info(f"Deployment {deployment_id} approved for battery {dep.battery_id} → {site_name}")
 
     return {
         "id": dep.id,
         "status": dep.status,
-        "message": f"Deployment approved for {dep.site.name}",
+        "message": f"Deployment approved for {site_name}",
     }
