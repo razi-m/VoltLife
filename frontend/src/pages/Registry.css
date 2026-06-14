@@ -69,3 +69,54 @@
 }
 
 .registry__passport-body { animation: fadeIn 0.2s ease; }
+
+.registry__backdrop {
+  display: none;
+}
+
+@media (max-width: 1200px) {
+  .registry__backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+    animation: fadeInBackdrop 0.2s ease forwards;
+  }
+
+  .registry__passport-panel {
+    position: fixed;
+    top: var(--space-4);
+    right: var(--space-4);
+    bottom: var(--space-4);
+    width: 400px;
+    max-width: calc(100vw - var(--space-8));
+    z-index: 1000;
+    height: auto;
+    animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  
+  .registry__passport-panel .card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: var(--surface-container-high);
+    box-shadow: -10px 10px 30px rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--primary-container);
+  }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

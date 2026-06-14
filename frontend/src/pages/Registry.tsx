@@ -108,8 +108,10 @@ const Registry: React.FC = () => {
 
         {/* Aadhaar Passport Panel */}
         {selectedBattery && (
-          <div className="registry__passport-panel">
-            <Card glow>
+          <>
+            <div className="registry__backdrop" onClick={() => setSelectedBattery(null)} />
+            <div className="registry__passport-panel">
+              <Card glow>
               <div className="registry__passport-header">
                 <h3 className="text-headline-sm">Battery Aadhaar Passport</h3>
                 <button className="registry__close-btn" onClick={() => setSelectedBattery(null)}>✕</button>
@@ -162,6 +164,7 @@ const Registry: React.FC = () => {
               )}
             </Card>
           </div>
+          </>
         )}
       </div>
     </div>
