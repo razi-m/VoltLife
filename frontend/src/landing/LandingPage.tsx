@@ -1,64 +1,27 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Scene from './Scene';
-import ScrollStory from './ScrollStory';
 import './LandingPage.css';
 
-const STATS = [
-  { label: 'Batteries Retiring by 2030', value: '40M+', color: '#4d8eff' },
-  { label: 'Second-Life Energy Potential', value: '120 GWh', color: '#4edea3' },
-  { label: 'CO₂ Reduction Potential', value: '8.2M', unit: 'tonnes', color: '#f59e0b' },
+const SDG_GOALS = [
+  { num: 7, title: 'Affordable & Clean Energy', color: '#FCC30B', icon: '☀', desc: 'Extending battery life multiplies clean energy access across rural India' },
+  { num: 9, title: 'Industry, Innovation & Infrastructure', color: '#F36D25', icon: '⚙', desc: 'AI-powered grading and deployment builds resilient energy infrastructure' },
+  { num: 12, title: 'Responsible Consumption & Production', color: '#BF8B2E', icon: '♻', desc: 'Second-life deployment diverts millions of batteries from landfills' },
+  { num: 13, title: 'Climate Action', color: '#3F7E44', icon: '🌍', desc: 'Every redeployed battery saves 65 kg CO₂ — scaling to megatonnes by 2030' },
 ];
 
-const SECTIONS = [
-  {
-    num: '01', title: "India's Battery Crisis",
-    desc: "By 2030, over 40 million EV and industrial batteries will reach end-of-first-life. Without intelligent systems, they become hazardous waste — leaching lithium, cobalt, and nickel into groundwater.",
-    accent: '#ff5451',
-  },
-  {
-    num: '02', title: 'Battery Aadhaar Identity',
-    desc: "Every battery receives a unique 21-character identity — its Aadhaar. This QR-scannable passport tracks chemistry, manufacturer, health, and lifecycle events from birth to responsible end-of-life.",
-    accent: '#4d8eff',
-  },
-  {
-    num: '03', title: 'AI-Powered Assessment',
-    desc: "Our ML engine analyzes 18 telemetry dimensions — cycle degradation, thermal exposure, internal resistance growth — to predict remaining useful life and assign a grade from S (pristine) to D (end-of-life).",
-    accent: '#06b6d4',
-  },
-  {
-    num: '04', title: 'Deployment Intelligence',
-    desc: "Grade-matched routing algorithm considers proximity, demand capacity, chemistry compatibility, and grid requirements to find the optimal second-life deployment — from solar storage to rural microgrids.",
-    accent: '#4edea3',
-  },
-  {
-    num: '05', title: 'Environmental Impact',
-    desc: "Every battery diverted to second-life saves 65 kg of CO₂. VoltLife transforms waste into infrastructure — powering schools, health centers, telecom towers, and solar installations across India.",
-    accent: '#f59e0b',
-  },
+const STATS = [
+  { value: '40M+', label: 'Batteries Retiring by 2030', color: '#4d8eff' },
+  { value: '120 GWh', label: 'Second-Life Energy Potential', color: '#4edea3' },
+  { value: '8.2M', label: 'Tonnes CO₂ Reduction', color: '#f59e0b' },
 ];
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [scrollY, setScrollY] = useState(0);
-  const heroRef = useRef<HTMLDivElement>(null);
-  const [hasWebGL, setHasWebGL] = useState(false);
-  const [activeSection, setActiveSection] = useState<string>('01');
-  const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const [activeGoal, setActiveGoal] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
-    // Detect WebGL support
-    try {
-      const canvas = document.createElement('canvas');
-      const supported = !!(
-        window.WebGLRenderingContext &&
-        (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
-      );
-      setHasWebGL(supported);
-    } catch (e) {
-      setHasWebGL(false);
-    }
-  }, []);
+  // No useEffect token clearing — handleRoleSelect manages tokens directly
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -66,161 +29,160 @@ const LandingPage: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Rotate SDG highlights
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const num = entry.target.getAttribute('data-section-num');
-            if (num) {
-              setActiveSection(num);
-            }
-          }
-        });
-      },
-      {
-        root: null,
-        rootMargin: '-30% 0px -30% 0px',
-        threshold: 0.1,
-      }
-    );
+    const interval = setInterval(() => setActiveGoal(g => (g + 1) % SDG_GOALS.length), 4000);
+    return () => clearInterval(interval);
+  }, []);
 
-    Object.values(sectionRefs.current).forEach((ref) => {
-      if (ref) observer.observe(ref);
-    });
+  // Particle canvas animation
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    const particles: { x: number; y: number; vx: number; vy: number; r: number; color: string; alpha: number }[] = [];
+    const colors = ['#FCC30B', '#F36D25', '#BF8B2E', '#3F7E44', '#4d8eff', '#4edea3'];
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    for (let i = 0; i < 80; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        r: 1.5 + Math.random() * 2,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        alpha: 0.15 + Math.random() * 0.35,
+      });
+    }
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (const p of particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.alpha;
+        ctx.fill();
+      }
+
+      // Draw connections
+      ctx.globalAlpha = 0.04;
+      ctx.strokeStyle = '#4edea3';
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
 
     return () => {
-      observer.disconnect();
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
     };
-  }, [hasWebGL]);
+  }, []);
+
+  const handleLaunch = () => {
+    localStorage.setItem('user_role', 'seller');
+    localStorage.setItem('supplier_token', 'demo_session');
+    localStorage.setItem('supplier_username', 'Guest Seller');
+    localStorage.setItem('supplier_company', 'Demo Corp');
+    navigate('/dashboard');
+  };
 
   return (
     <div className="landing">
-      {/* 3D Cinematic Backdrop (Conditional on WebGL support) */}
-      {hasWebGL && (
-        <Scene>
-          <ScrollStory />
-        </Scene>
-      )}
+      {/* Particle canvas background */}
+      <canvas ref={canvasRef} className="landing__canvas" />
 
-      {/* Navigation */}
+      {/* Gradient overlays */}
+      <div className="landing__gradient-top" />
+      <div className="landing__gradient-bottom" />
+
+      {/* Nav */}
       <nav className={`landing__nav ${scrollY > 50 ? 'landing__nav--scrolled' : ''}`}>
         <div className="landing__nav-inner">
           <div className="landing__logo">
             <span className="landing__logo-bolt">⚡</span>
             <span className="landing__logo-text">VoltLife</span>
           </div>
-          <button className="landing__cta-nav" onClick={() => navigate('/dashboard')}>
-            Launch Platform →
-          </button>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="landing__hero" ref={heroRef}>
-        <div className="landing__hero-bg">
-          {/* Particle grid effect (only if not rendering 3D R3F scene) */}
-          {!hasWebGL && (
-            <div className="landing__particles">
-              {Array.from({ length: 60 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="landing__particle"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                    animationDelay: `${Math.random() * 5}s`,
-                    animationDuration: `${3 + Math.random() * 4}s`,
-                    opacity: 0.1 + Math.random() * 0.4,
-                  }}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Glow orbs */}
-          <div className="landing__orb landing__orb--blue" style={{ transform: `translateY(${scrollY * 0.3}px)` }} />
-          <div className="landing__orb landing__orb--green" style={{ transform: `translateY(${scrollY * 0.2}px)` }} />
-        </div>
-
+      <section className="landing__hero">
         <div className="landing__hero-content">
-          <div className="landing__hero-badge text-label-caps">INDIA'S BATTERY OPERATING SYSTEM</div>
+          <div className="landing__hero-badge">INDIA'S BATTERY OPERATING SYSTEM</div>
           <h1 className="landing__hero-title">
             Every Battery<br />
             <span className="landing__hero-gradient">Deserves a Second Life</span>
           </h1>
           <p className="landing__hero-subtitle">
-            AI-powered lifecycle management for India's 40 million retiring batteries. 
-            Assess. Deploy. Impact.
+            AI-powered lifecycle management for India's 40 million retiring batteries.
+            Powering sustainable development through circular energy.
           </p>
-          <div className="landing__hero-actions">
-            <button className="landing__cta-primary" onClick={() => navigate('/dashboard')}>
-              Enter Mission Control
-            </button>
-            <button className="landing__cta-secondary" onClick={() => navigate('/assess')}>
-              Try Assessment →
-            </button>
-          </div>
-        </div>
 
-        {/* 2D Fallback Battery Wireframe (Only shown if WebGL is not available) */}
-        {!hasWebGL && (
-          <div className="landing__battery-visual">
-            <div className="landing__battery-frame">
-              <div className="landing__battery-terminal" />
-              <div className="landing__battery-body">
-                <div className="landing__battery-cells">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="landing__battery-cell"
-                      style={{ animationDelay: `${i * 0.15}s` }}
-                    />
-                  ))}
+          {/* SDG Goals - inline */}
+          <div className="landing__sdg-grid landing__sdg-grid--hero">
+            {SDG_GOALS.map((goal, i) => (
+              <div
+                key={goal.num}
+                className={`landing__sdg-card ${activeGoal === i ? 'landing__sdg-card--active' : ''}`}
+                onMouseEnter={() => setActiveGoal(i)}
+              >
+                <div className="landing__sdg-num" style={{ background: goal.color }}>
+                  SDG {goal.num}
                 </div>
-                <div className="landing__battery-scan">
-                  <div className="landing__scan-line" />
-                </div>
+                <div className="landing__sdg-icon">{goal.icon}</div>
+                <h3 className="landing__sdg-card-title">{goal.title}</h3>
+                <p className="landing__sdg-desc">{goal.desc}</p>
               </div>
-            </div>
-            <div className="landing__battery-label text-data-md">
-              BPAN: INFOAN480415032400231
-            </div>
+            ))}
           </div>
-        )}
+
+          {/* Launch button */}
+          <button className="landing__cta-primary landing__cta-primary--large" onClick={handleLaunch}>
+            Launch Mission Control →
+          </button>
+        </div>
       </section>
 
-      {/* Stats bar */}
+      {/* Stats */}
       <section className="landing__stats">
-        {STATS.map((stat) => (
-          <div key={stat.label} className="landing__stat">
-            <div className="landing__stat-value text-data-lg" style={{ color: stat.color }}>
-              {stat.value}{stat.unit && <span className="landing__stat-unit"> {stat.unit}</span>}
-            </div>
-            <div className="text-label-caps">{stat.label}</div>
-          </div>
-        ))}
-      </section>
-
-      {/* Story sections */}
-      <section className="landing__story">
-        {SECTIONS.map((section) => (
-          <div
-            key={section.num}
-            data-section-num={section.num}
-            ref={(el) => {
-              sectionRefs.current[section.num] = el;
-            }}
-            className={`landing__section ${activeSection === section.num ? 'landing__section--active' : ''}`}
-          >
-            <div className="landing__section-num text-data-lg" style={{ color: section.accent }}>
-              {section.num}
-            </div>
-            <div className="landing__section-content">
-              <h2 className="landing__section-title">{section.title}</h2>
-              <div className="landing__section-accent" style={{ background: section.accent }} />
-              <p className="landing__section-desc">{section.desc}</p>
-            </div>
+        {STATS.map((s) => (
+          <div key={s.label} className="landing__stat">
+            <div className="landing__stat-value" style={{ color: s.color }}>{s.value}</div>
+            <div className="landing__stat-label">{s.label}</div>
           </div>
         ))}
       </section>
@@ -228,12 +190,11 @@ const LandingPage: React.FC = () => {
       {/* Final CTA */}
       <section className="landing__final-cta">
         <h2 className="landing__final-title">Ready to Transform India's Battery Future?</h2>
-        <p className="text-body-lg text-on-surface-variant" style={{ maxWidth: 600, textAlign: 'center' }}>
-          Join the mission to give every battery a dignified second life. 
-          Explore the platform and see the impact in real time.
+        <p className="landing__final-sub">
+          Join the mission to give every battery a dignified second life.
         </p>
-        <button className="landing__cta-primary" onClick={() => navigate('/dashboard')}>
-          Launch VoltLife →
+        <button className="landing__cta-primary landing__cta-primary--large" onClick={handleLaunch}>
+          Launch Mission Control →
         </button>
       </section>
 
@@ -241,7 +202,7 @@ const LandingPage: React.FC = () => {
       <footer className="landing__footer">
         <div className="landing__footer-inner">
           <span>© 2026 VoltLife — India's Battery OS</span>
-          <span className="text-label-caps">Built for India 2030</span>
+          <span className="landing__footer-sdg">SDG 7 · 9 · 12 · 13</span>
         </div>
       </footer>
     </div>

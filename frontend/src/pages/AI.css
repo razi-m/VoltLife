@@ -106,3 +106,30 @@
 }
 .ai__input:focus { border-color: var(--primary); outline: none; }
 .ai__input::placeholder { color: var(--on-surface-variant); }
+
+/* Status dot variants */
+.ai__status-dot--error {
+  background: var(--error); box-shadow: 0 0 8px var(--error);
+}
+
+/* Markdown formatting in assistant messages */
+.ai__list-item {
+  padding-left: 8px; margin: 2px 0;
+}
+.ai__bold-line {
+  font-weight: 700; margin: 6px 0 2px;
+}
+.ai__spacer { height: 8px; }
+.ai__code-block {
+  background: var(--surface-container-lowest);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius);
+  padding: 10px 14px; margin: 6px 0;
+  font-family: var(--font-mono); font-size: 12px;
+  overflow-x: auto; white-space: pre; line-height: 1.5;
+}
+.ai__inline-code {
+  background: var(--surface-container-lowest);
+  padding: 1px 5px; border-radius: 3px;
+  font-family: var(--font-mono); font-size: 12px;
+}

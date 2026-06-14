@@ -13,9 +13,9 @@ const Deploy = lazy(() => import('./pages/Deploy'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const Impact = lazy(() => import('./pages/Impact'));
 const AI = lazy(() => import('./pages/AI'));
-const Marketplace = lazy(() => import('./pages/Marketplace'));
+const Marketplace = lazy(() => import('./pages/MarketplaceComingSoon'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
-const SellerDashboard = lazy(() => import('./pages/SellerDashboard'));
+// const SellerDashboard = lazy(() => import('./pages/SellerDashboard'));
 
 const PageLoader = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
@@ -23,17 +23,18 @@ const PageLoader = () => (
   </div>
 );
 
-/** Role guard — blocks suppliers from buyer-only pages */
-const BuyerOnly: React.FC<{ children: React.ReactElement }> = ({ children }) => {
-  const hasSupplierToken = !!localStorage.getItem('supplier_token');
-  if (hasSupplierToken) return <Navigate to="/seller-dashboard" replace />;
+/** Requires any session token — redirects to landing if not */
+const RequireRole: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const hasRole = !!localStorage.getItem('supplier_token') ||
+    !!localStorage.getItem('buyer_token');
+  if (!hasRole) return <Navigate to="/" replace />;
   return children;
 };
 
-/** Role guard — blocks buyers/anon from seller-only pages */
+/** Seller-only guard — buyers get sent to marketplace */
 const SellerOnly: React.FC<{ children: React.ReactElement }> = ({ children }) => {
-  const hasSupplierToken = !!localStorage.getItem('supplier_token');
-  if (!hasSupplierToken) return <Navigate to="/login" replace />;
+  const isSupplier = !!localStorage.getItem('supplier_token');
+  if (!isSupplier) return <Navigate to="/marketplace" replace />;
   return children;
 };
 
@@ -51,7 +52,6 @@ const AppLayout: React.FC = () => {
     );
   }
 
-  // Login page renders without sidebar chrome
   if (isLogin) {
     return (
       <Suspense fallback={<PageLoader />}>
@@ -61,28 +61,26 @@ const AppLayout: React.FC = () => {
   }
 
   return (
-    <div className="app-layout">
-      <Sidebar wsConnected={connected} />
-      <main className="app-main">
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/dashboard" element={<Dashboard lastEvent={lastEvent} />} />
-            <Route path="/assess" element={<Assess lastEvent={lastEvent} />} />
-            <Route path="/registry" element={<Registry />} />
-            <Route path="/deploy" element={<Deploy />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/impact" element={<Impact />} />
-            <Route path="/ai" element={<AI />} />
-            <Route path="/marketplace" element={
-              <BuyerOnly><Marketplace lastEvent={lastEvent} /></BuyerOnly>
-            } />
-            <Route path="/seller-dashboard" element={
-              <SellerOnly><SellerDashboard /></SellerOnly>
-            } />
-          </Routes>
-        </Suspense>
-      </main>
-    </div>
+    <RequireRole>
+      <div className="app-layout">
+        <Sidebar wsConnected={connected} />
+        <main className="app-main">
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/dashboard" element={<SellerOnly><Dashboard lastEvent={lastEvent} /></SellerOnly>} />
+              <Route path="/assess" element={<SellerOnly><Assess lastEvent={lastEvent} /></SellerOnly>} />
+              <Route path="/registry" element={<SellerOnly><Registry /></SellerOnly>} />
+              <Route path="/deploy" element={<SellerOnly><Deploy /></SellerOnly>} />
+              <Route path="/analytics" element={<SellerOnly><Analytics /></SellerOnly>} />
+              <Route path="/impact" element={<SellerOnly><Impact /></SellerOnly>} />
+              <Route path="/ai" element={<AI />} />
+              <Route path="/marketplace" element={<Marketplace lastEvent={lastEvent} />} />
+              {/* <Route path="/seller-dashboard" element={<SellerOnly><SellerDashboard /></SellerOnly>} /> */}
+            </Routes>
+          </Suspense>
+        </main>
+      </div>
+    </RequireRole>
   );
 };
 
