@@ -13,7 +13,7 @@ const Deploy = lazy(() => import('./pages/Deploy'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const Impact = lazy(() => import('./pages/Impact'));
 const AI = lazy(() => import('./pages/AI'));
-const Marketplace = lazy(() => import('./pages/MarketplaceComingSoon'));
+const Marketplace = lazy(() => import('./pages/MarketplaceNew'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 // const SellerDashboard = lazy(() => import('./pages/SellerDashboard'));
 
