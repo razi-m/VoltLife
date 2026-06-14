@@ -212,6 +212,8 @@ def process_successful_payment(db: Session, session_id: str, quote_id: int, back
 
     # 5. Decrement Stock, Update Quote, and Create Order
     lot.available_quantity -= quote.quantity
+    if lot.available_quantity <= 0:
+        lot.status = "sold_out"
     quote.status = "accepted"
 
     order = Order(
@@ -245,10 +247,11 @@ def process_successful_payment(db: Session, session_id: str, quote_id: int, back
             run_async_in_thread(trigger_n8n_webhook(order.id, float(order.total_price), order.buyer_id))
     else:
         simulation_delay = float(os.getenv("SIMULATION_DELAY", "2.0"))
-        if background_tasks:
-            background_tasks.add_task(simulate_in_app_logistics, order.id, simulation_delay)
-        else:
-            run_async_in_thread(simulate_in_app_logistics(order.id, simulation_delay))
+        if simulation_delay >= 0.0:
+            if background_tasks:
+                background_tasks.add_task(simulate_in_app_logistics, order.id, simulation_delay)
+            else:
+                run_async_in_thread(simulate_in_app_logistics(order.id, simulation_delay))
 
 
     return order

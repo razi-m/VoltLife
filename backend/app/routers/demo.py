@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header, BackgroundTasks, 
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.orm import Battery, TelemetrySummary, Assessment, Deployment, LifecycleEvent, Site
-from app.seed.seed import seed_sites, seed_marketplace_demo_users
+from app.seed.seed import seed_sites, seed_marketplace_demo_users, seed_demo_marketplace_data
 from app.services.pipeline import JOBS
 from app.core.events import manager as ws_manager
 from app.core.config import settings
@@ -44,11 +44,42 @@ async def reset_demo(
 
     # Wipe tables in proper dependency order
     try:
+        from app.models.marketplace_orm import (
+            SupportTicket, PaymentEvent, ShipmentTrackingEvent, Order, Quote,
+            Requirement, BuyerAccount, Listing, PricingTier, BatteryInventoryLotAssociation,
+            InventoryLot, SaaS_Subscription, SupplierVerification, SupplierUser, Supplier
+        )
+        
+        # 1. Wipe logistics / orders / support
+        db.query(SupportTicket).delete()
+        db.query(PaymentEvent).delete()
+        db.query(ShipmentTrackingEvent).delete()
+        db.query(Order).delete()
+        db.query(Quote).delete()
+        
+        # 2. Wipe buyer requirements & accounts
+        db.query(Requirement).delete()
+        db.query(BuyerAccount).delete()
+        
+        # 3. Wipe listings / pricing / lots
+        db.query(Listing).delete()
+        db.query(PricingTier).delete()
+        db.execute(BatteryInventoryLotAssociation.delete())
+        
+        # 4. Wipe inventory lots & subscriptions & suppliers
+        db.query(InventoryLot).delete()
+        db.query(SaaS_Subscription).delete()
+        db.query(SupplierVerification).delete()
+        db.query(SupplierUser).delete()
+        db.query(Supplier).delete()
+        
+        # 5. Wipe core battery telemetry & assessments
         db.query(Deployment).delete()
         db.query(Assessment).delete()
         db.query(TelemetrySummary).delete()
         db.query(LifecycleEvent).delete()
         db.query(Battery).delete()
+        
         db.commit()
     except Exception as e:
         db.rollback()
@@ -63,6 +94,9 @@ async def reset_demo(
     
     # Reseed marketplace demo users (buyer + verified supplier)
     seed_marketplace_demo_users(db)
+    
+    # Reseed full demo marketplace data (listings, requirements, orders, etc.)
+    seed_demo_marketplace_data(db)
     
     # Clear WebSocket event ring buffer
     ws_manager.ring_buffer.clear()
