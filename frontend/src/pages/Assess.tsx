@@ -17,6 +17,8 @@ const DEMO_BATTERY = {
   lat: 18.52, lng: 73.85, cycle_count: 850, capacity_now_kwh: 18.2,
   avg_temp_c: 34.5, max_temp_c: 52.1, thermal_stress_hours: 120,
   internal_resistance_mohm: 85, ir_growth_pct: 18.5, coulombic_efficiency: 0.985,
+  fade_rate: 0.05, fade_acceleration: 0.005, cv_phase_fraction: 0.15,
+  voltage_slope: 0.06, voltage_variance: 0.004, discharge_efficiency: 0.96,
 };
 
 const Assess: React.FC<AssessProps> = ({ lastEvent }) => {
