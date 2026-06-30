@@ -235,7 +235,7 @@ const SellerDashboard: React.FC = () => {
 
     setModalSubmitting(true);
     setModalError(null);
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const apiBase = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
 
     try {
       // 1. Configure listing details

@@ -30,7 +30,7 @@ const LoginPage: React.FC = () => {
     setError(null);
 
     const loginPayload = { username, password };
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const apiBase = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
     const endpoint = role === 'buyer' ? '/api/v1/buyers/login' : '/api/v1/suppliers/login';
 
     try {
@@ -82,7 +82,7 @@ const LoginPage: React.FC = () => {
     setError(null);
 
     const loginPayload = { username: defaultUser, password: defaultPassword };
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const apiBase = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
     const endpoint = selectedRole === 'buyer' ? '/api/v1/buyers/login' : '/api/v1/suppliers/login';
 
     try {

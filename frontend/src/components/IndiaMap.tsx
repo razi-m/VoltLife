@@ -24,7 +24,7 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 const DefaultIcon = L.icon({ iconUrl: markerIcon, shadowUrl: markerShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = (import.meta as any).env?.VITE_API_URL || ((import.meta as any).env?.PROD ? '' : 'http://localhost:8000');
 
 // City -> [lat, lng] (covers the seed cities; falls back to India centroid).
 const CITY_COORDS: Record<string, [number, number]> = {
