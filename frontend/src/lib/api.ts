@@ -273,4 +273,4 @@ export const api = {
 };
 
 export { ApiError };
-export const WS_URL = (API_BASE.replace('http', 'ws')) + '/ws/feed';
+export const WS_URL = API_BASE ? (API_BASE.replace('http', 'ws') + '/ws/feed') : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/feed`;
