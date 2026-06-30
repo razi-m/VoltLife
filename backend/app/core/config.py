@@ -8,7 +8,7 @@ class ManualSettings:
     def __init__(self):
         self.PROJECT_NAME = "VoltLife Backend"
         self.API_V1_STR = "/api/v1"
-        self.DATABASE_URL = os.environ["DATABASE_URL"]  # Raises KeyError immediately if missing
+        self.DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/postgres")
 
         self.DEMO_KEY = os.getenv("DEMO_KEY", "volt_secret_key")
         self.PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000")
