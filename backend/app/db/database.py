@@ -77,4 +77,21 @@ def init_db():
         # Schema is frozen (docs/03); models use postgresql.JSONB and DateTime(timezone=True) -> TIMESTAMPTZ.
         # create_all(checkfirst=True) creates missing tables only. For column changes see
         # database_evolution_strategy.md (no migration tooling at the hackathon).
-    OrmBase.metadata.create_all(bind=engine)
+    try:
+        OrmBase.metadata.create_all(bind=engine)
+    except Exception as e:
+        import sys
+        import traceback
+        # Safely mask the password for logging
+        safe_url = DATABASE_URL
+        if "@" in safe_url:
+            auth_part, host_part = safe_url.split("@", 1)
+            if ":" in auth_part.replace("postgresql://", ""):
+                prefix = "postgresql://" if safe_url.startswith("postgresql://") else ""
+                auth_stripped = auth_part.replace("postgresql://", "")
+                user = auth_stripped.split(":")[0]
+                safe_url = f"{prefix}{user}:***@{host_part}"
+        
+        print(f"\n\n{'='*60}\nDATABASE CONNECTION CRASH DEBUG:\nTarget URL: {safe_url}\nError Type: {type(e).__name__}\nExact Error: {str(e)}\n{'='*60}\n\n", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        raise e
