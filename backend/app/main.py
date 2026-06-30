@@ -120,67 +120,60 @@ app.include_router(razorpay_payments.router)  # /api/v1/payments/razorpay (addit
 @app.on_event("startup")
 def startup_event():
     logger.info("Initializing VoltLife backend startup tasks...")
-    # Setup database/SQLite
-    init_db()
     
-    # Check if sites exist, if empty seed them
-    db = SessionLocal()
+    # In Vercel serverless environments, running create_all() and seeding on every cold start
+    # causes connection spikes and timeouts. We skip it here.
+    if os.getenv("VERCEL") == "1":
+        logger.info("Running on Vercel Serverless. Skipping startup DB initialization to prevent cold-start timeouts.")
+        return
+
     try:
-        from app.models.orm import Site
-        site_count = db.query(Site).count()
-        if site_count == 0:
-            logger.info("Sites table is empty. Seeding demand sites...")
-            from app.seed.seed import seed_sites
-            seed_sites(db)
-        else:
-            logger.info(f"Database already seeded. Found {site_count} demand sites.")
-            
-        # Write a dummy replay results file if it doesn't exist to prevent replay failures
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        replay_file = os.path.join(current_dir, "seed", "replay_results.json")
-        if not os.path.exists(replay_file) or os.path.getsize(replay_file) == 0:
-            logger.info("Replay results file missing or empty. Seeding basic mock replay...")
-            mock_replay_events = [
-                {
-                    "type": "assessment",
-                    "payload": {
-                        "battery_id": 1,
-                        "aadhaar_id": "INFOAN480415032400231",
-                        "oem": "FOA",
-                        "soh_pct": 82.4,
-                        "rul_years": 4.3,
-                        "rul_range": [3.1, 5.2],
-                        "grade": "A",
-                        "confidence": "high",
-                        "reasons": ["Low thermal stress", "Stable voltage profile"],
-                        "lat": 18.52,
-                        "lng": 73.85
-                    }
-                },
-                {
-                    "type": "deployment",
-                    "payload": {
-                        "battery_id": 1,
-                        "site_id": 1,
-                        "site_name": "Bhadla Solar Park Storage, RJ",
-                        "site_type": "solar_storage",
-                        "score": 0.87,
-                        "distance_km": 1142.0,
-                        "reasons": ["Best capacity match", "Grade A meets solar bar"],
-                        "energy_unlocked_mwh": 3.06,
-                        "carbon_saved_kg": 197.8,
-                        "from": [18.52, 73.85],
-                        "to": [27.54, 71.91]
-                    }
-                }
-            ]
-            try:
-                with open(replay_file, "w") as f:
-                    json.dump(mock_replay_events, f, indent=2)
-            except OSError as e:
-                logger.warning(f"Could not write mock replay file (read-only filesystem?): {e}")
+        # Setup database/SQLite
+        init_db()
+        
+        # Check if sites exist, if empty seed them
+        db = SessionLocal()
+        try:
+            from app.models.orm import Site
+            site_count = db.query(Site).count()
+            if site_count == 0:
+                logger.info("Sites table is empty. Seeding demand sites...")
+                from app.seed.seed import seed_sites
+                seed_sites(db)
+            else:
+                logger.info(f"Database already seeded. Found {site_count} demand sites.")
                 
+            # Write a dummy replay results file if it doesn't exist to prevent replay failures
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            replay_file = os.path.join(current_dir, "seed", "replay_results.json")
+            if not os.path.exists(replay_file) or os.path.getsize(replay_file) == 0:
+                logger.info("Replay results file missing or empty. Seeding basic mock replay...")
+                mock_replay_events = [
+                    {
+                        "type": "assessment",
+                        "payload": {
+                            "battery_id": 1,
+                            "aadhaar_id": "INFOAN480415032400231",
+                            "oem": "FOA",
+                            "soh_pct": 82.4,
+                            "rul_years": 4.3,
+                            "rul_range": [3.1, 5.2],
+                            "grade": "A",
+                            "confidence": "high",
+                            "reasons": ["Low thermal stress", "Stable voltage profile"],
+                            "lat": 18.52,
+                            "lng": 73.85
+                        }
+                    }
+                ]
+                try:
+                    with open(replay_file, "w") as f:
+                        json.dump(mock_replay_events, f, indent=2)
+                except OSError as e:
+                    logger.warning(f"Could not write mock replay file (read-only filesystem?): {e}")
+                    
+        finally:
+            db.close()
     except Exception as e:
-        logger.error(f"VoltLife startup seeding failed: {e}")
-    finally:
-        db.close()
+        logger.error(f"VoltLife startup seeding/initialization failed: {e}")
+        # We catch this so the application doesn't crash on startup.
