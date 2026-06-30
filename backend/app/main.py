@@ -167,8 +167,11 @@ def startup_event():
                     }
                 }
             ]
-            with open(replay_file, "w") as f:
-                json.dump(mock_replay_events, f, indent=2)
+            try:
+                with open(replay_file, "w") as f:
+                    json.dump(mock_replay_events, f, indent=2)
+            except OSError as e:
+                logger.warning(f"Could not write mock replay file (read-only filesystem?): {e}")
                 
     except Exception as e:
         logger.error(f"VoltLife startup seeding failed: {e}")
