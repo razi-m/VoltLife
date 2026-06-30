@@ -32,8 +32,6 @@ if not is_sqlite:
     connect_args = {
         "connect_timeout": 10
     }
-    if "localhost" not in DATABASE_URL and "127.0.0.1" not in DATABASE_URL:
-        connect_args["sslmode"] = "require"
     engine = create_engine(
         DATABASE_URL,
         poolclass=NullPool,
