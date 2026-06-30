@@ -74,7 +74,7 @@ const AppLayout: React.FC = () => {
               <Route path="/analytics" element={<SellerOnly><Analytics /></SellerOnly>} />
               <Route path="/impact" element={<SellerOnly><Impact /></SellerOnly>} />
               <Route path="/ai" element={<AI />} />
-              <Route path="/marketplace" element={<Marketplace lastEvent={lastEvent} />} />
+              <Route path="/marketplace" element={<Marketplace />} />
               {/* <Route path="/seller-dashboard" element={<SellerOnly><SellerDashboard /></SellerOnly>} /> */}
             </Routes>
           </Suspense>
