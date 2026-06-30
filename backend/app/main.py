@@ -1,4 +1,11 @@
 import os
+import sys
+
+# Vercel fix: Add the 'backend' directory to sys.path so 'from app.X import Y' works!
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, status
 from fastapi.responses import JSONResponse
