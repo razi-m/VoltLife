@@ -3,8 +3,8 @@ import { Button } from '../components/ui/Button';
 import './AI.css';
 
 // ── Gemini Config ──────────────────────────────────
-// Paste your Gemini API key below between the quotes:
-const GEMINI_API_KEY = 'AQ.Ab8RN6K0SNmaJLvx6z4i5vLgcbaUhqP5ItAp3ZFYj6b8ktvlMg';
+// Paste your Gemini API key below between the quotes if you want to use the live API:
+const GEMINI_API_KEY = '';
 const GEMINI_MODEL = 'gemini-3.5-flash';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
@@ -90,7 +90,6 @@ const AI: React.FC = () => {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [apiKeyMissing, setApiKeyMissing] = useState(!GEMINI_API_KEY);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<GeminiMessage[]>([]);
 
@@ -101,50 +100,53 @@ const AI: React.FC = () => {
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
 
-    if (!GEMINI_API_KEY) {
-      setApiKeyMissing(true);
-      setMessages(prev => [...prev,
-        { role: 'user', content: text },
-        { role: 'assistant', content: 'API key not configured. Please add your Gemini API key in `frontend/src/pages/AI.tsx` at line 7 (the `GEMINI_API_KEY` constant).' },
-      ]);
-      return;
-    }
-
     const userMsg: Message = { role: 'user', content: text };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
 
-    historyRef.current.push({ role: 'user', parts: [{ text }] });
-
     try {
-      const res = await fetch(GEMINI_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: historyRef.current,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 1024,
-          },
-        }),
-      });
+      if (GEMINI_API_KEY) {
+        // Use live Gemini API if key is provided
+        historyRef.current.push({ role: 'user', parts: [{ text }] });
+        const res = await fetch(GEMINI_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents: historyRef.current,
+            generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+          }),
+        });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData?.error?.message || `Gemini API error (${res.status})`);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData?.error?.message || `Gemini API error (${res.status})`);
+        }
+
+        const data = await res.json();
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
+        historyRef.current.push({ role: 'model', parts: [{ text: reply }] });
+        setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+      } else {
+        // Fallback to local mock backend
+        const res = await fetch('/api/v1/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`Backend AI error (${res.status})`);
+        }
+
+        const data = await res.json();
+        setMessages(prev => [...prev, { role: 'assistant', content: data.response || 'No response generated.' }]);
       }
-
-      const data = await res.json();
-      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
-
-      historyRef.current.push({ role: 'model', parts: [{ text: reply }] });
-      setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
     } catch (err: any) {
-      const errorMsg = err.message || 'Failed to reach Gemini API.';
+      const errorMsg = err.message || 'Failed to reach AI service.';
       setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${errorMsg}` }]);
-      historyRef.current.pop();
+      if (GEMINI_API_KEY) historyRef.current.pop();
     } finally {
       setLoading(false);
     }
@@ -207,8 +209,8 @@ const AI: React.FC = () => {
       <div className="page-header">
         <h1 className="page-title">Volt AI</h1>
         <div className="ai__status">
-          <span className={`ai__status-dot ${apiKeyMissing ? 'ai__status-dot--error' : ''}`} />
-          <span className="text-label-caps">{apiKeyMissing ? 'API KEY NEEDED' : 'ONLINE'}</span>
+          <span className="ai__status-dot" />
+          <span className="text-label-caps">ONLINE (LOCAL)</span>
         </div>
       </div>
 
